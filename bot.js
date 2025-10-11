@@ -63,7 +63,7 @@ async function getChatGPTResponse(userId, message) {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: history,
-      temperature: 0.7,
+      temperature: 0.6,
       max_tokens: 1000,
     });
     
