@@ -2,6 +2,19 @@ require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const OpenAI = require('openai');
 
+// Verify environment variables are loaded
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+  console.error('❌ ERROR: TELEGRAM_BOT_TOKEN is not set in .env file');
+  process.exit(1);
+}
+
+if (!process.env.OPENAI_API_KEY) {
+  console.error('❌ ERROR: OPENAI_API_KEY is not set in .env file');
+  process.exit(1);
+}
+
+console.log('✅ Environment variables loaded successfully');
+
 // Initialize Telegram Bot
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
