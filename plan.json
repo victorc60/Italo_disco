@@ -1,0 +1,161 @@
+{
+    "weeks": [
+      {
+        "week": 1,
+        "theme": "Greetings and Basic Phrases",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn 25 Italian greetings and farewells" },
+          { "day": 2, "focus": "grammar", "task": "Use 'essere' and 'avere' in simple sentences" },
+          { "day": 3, "focus": "reading", "task": "Read short dialogues with greetings" },
+          { "day": 4, "focus": "practice", "task": "Create 5 sentences introducing yourself" },
+          { "day": 5, "focus": "writing", "task": "Practice writing hello and goodbye" },
+          { "day": 6, "focus": "revision", "task": "Revise greetings and verbs 'essere/avere'" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on greetings and basic phrases" }
+        ]
+      },
+      {
+        "week": 2,
+        "theme": "Numbers and Dates",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn numbers from 1 to 1000" },
+          { "day": 2, "focus": "grammar", "task": "Using numbers in sentences and dates" },
+          { "day": 3, "focus": "reading", "task": "Read a short text with dates and prices" },
+          { "day": 4, "focus": "practice", "task": "Write your birthday and today's date" },
+          { "day": 5, "focus": "writing", "task": "Practice writing numbers and dates " },
+          { "day": 6, "focus": "revision", "task": "Revise all learned numbers" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on numbers and dates" }
+        ]
+      },
+      {
+        "week": 3,
+        "theme": "Family and Relationships",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn family member words" },
+          { "day": 2, "focus": "grammar", "task": "Use possessive adjectives (mio, tua, suo...)" },
+          { "day": 3, "focus": "reading", "task": "Read a short family dialogue" },
+          { "day": 4, "focus": "practice", "task": "Write about your family" },
+          { "day": 5, "focus": "writing", "task": "Talk about your family members" },
+          { "day": 6, "focus": "revision", "task": "Revise family vocabulary" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on family topic" }
+        ]
+      },
+      {
+        "week": 4,
+        "theme": "Daily Routine",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn 25 verbs of daily activities" },
+          { "day": 2, "focus": "grammar", "task": "Conjugate regular -are verbs" },
+          { "day": 3, "focus": "reading", "task": "Read a text describing someone's routine" },
+          { "day": 4, "focus": "practice", "task": "Write your own daily routine" },
+          { "day": 5, "focus": "writing", "task": "Describe your morning routine" },
+          { "day": 6, "focus": "revision", "task": "Revise verbs of daily life" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on daily routines" }
+        ]
+      },
+      {
+        "week": 5,
+        "theme": "Food and Drinks",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn 25 food and drink words" },
+          { "day": 2, "focus": "grammar", "task": "Use articles with food nouns (il, la, un...)" },
+          { "day": 3, "focus": "reading", "task": "Read a restaurant dialogue" },
+          { "day": 4, "focus": "practice", "task": "Create your menu in Italian" },
+          { "day": 5, "focus": "writing", "task": "Order food in Italian" },
+          { "day": 6, "focus": "revision", "task": "Revise food vocabulary" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on food and drinks" }
+        ]
+      },
+      {
+        "week": 6,
+        "theme": "At Home and Furniture",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn 25 words about rooms and furniture" },
+          { "day": 2, "focus": "grammar", "task": "Prepositions of place (su, sotto, dentro...)" },
+          { "day": 3, "focus": "reading", "task": "Read a description of an apartment" },
+          { "day": 4, "focus": "practice", "task": "Describe your home" },
+          { "day": 5, "focus": "writing", "task": "Talk about where things are" },
+          { "day": 6, "focus": "revision", "task": "Revise home-related words" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on home and furniture" }
+        ]
+      },
+      {
+        "week": 7,
+        "theme": "Clothes and Shopping",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn 25 clothing words" },
+          { "day": 2, "focus": "grammar", "task": "Use adjectives with clothes" },
+          { "day": 3, "focus": "reading", "task": "Read a short text about shopping" },
+          { "day": 4, "focus": "practice", "task": "Describe what you wear today" },
+          { "day": 5, "focus": "writing", "task": "Roleplay: buying clothes" },
+          { "day": 6, "focus": "revision", "task": "Revise clothing vocabulary" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on clothes and shopping" }
+        ]
+      },
+      {
+        "week": 8,
+        "theme": "Weather and Seasons",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn 25 words about weather" },
+          { "day": 2, "focus": "grammar", "task": "Use 'fare' and 'essere' in weather expressions" },
+          { "day": 3, "focus": "reading", "task": "Read a text about seasons" },
+          { "day": 4, "focus": "practice", "task": "Describe today's weather" },
+          { "day": 5, "focus": "writing", "task": "Talk about your favorite season" },
+          { "day": 6, "focus": "revision", "task": "Revise weather expressions" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on weather and seasons" }
+        ]
+      },
+      {
+        "week": 9,
+        "theme": "Travel and Transportation",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn 25 travel-related words" },
+          { "day": 2, "focus": "grammar", "task": "Prepositions with means of transport" },
+          { "day": 3, "focus": "reading", "task": "Read a dialogue at the train station" },
+          { "day": 4, "focus": "practice", "task": "Write how you travel to work or school" },
+          { "day": 5, "focus": "writing", "task": "Talk about your last trip" },
+          { "day": 6, "focus": "revision", "task": "Revise transport vocabulary" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on travel topic" }
+        ]
+      },
+      {
+        "week": 10,
+        "theme": "Health and Body",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn 25 words about body parts" },
+          { "day": 2, "focus": "grammar", "task": "Reflexive verbs (mi alzo, mi lavo...)" },
+          { "day": 3, "focus": "reading", "task": "Read a short doctor's visit dialogue" },
+          { "day": 4, "focus": "practice", "task": "Write sentences using reflexive verbs" },
+          { "day": 5, "focus": "writing", "task": "Describe how you feel today" },
+          { "day": 6, "focus": "revision", "task": "Revise health-related words" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on health topic" }
+        ]
+      },
+      {
+        "week": 11,
+        "theme": "Free Time and Hobbies",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn 25 words about hobbies" },
+          { "day": 2, "focus": "grammar", "task": "Using 'piacere' and infinitives" },
+          { "day": 3, "focus": "reading", "task": "Read a text about leisure activities" },
+          { "day": 4, "focus": "practice", "task": "Write about what you like to do" },
+          { "day": 5, "focus": "writing", "task": "Talk about your favorite hobby" },
+          { "day": 6, "focus": "revision", "task": "Revise hobbies vocabulary" },
+          { "day": 7, "focus": "quiz", "task": "Weekly quiz on hobbies" }
+        ]
+      },
+      {
+        "week": 12,
+        "theme": "Emotions and Communication",
+        "days": [
+          { "day": 1, "focus": "vocabulary", "task": "Learn 25 emotion words" },
+          { "day": 2, "focus": "grammar", "task": "Use 'sentirsi' and emotional expressions" },
+          { "day": 3, "focus": "reading", "task": "Read a dialogue expressing feelings" },
+          { "day": 4, "focus": "practice", "task": "Write sentences expressing emotions" },
+          { "day": 5, "focus": "writing", "task": "Talk about how you feel in different situations" },
+          { "day": 6, "focus": "revision", "task": "Revise emotion vocabulary" },
+          { "day": 7, "focus": "quiz", "task": "Final quiz combining all topics" }
+        ]
+      }
+    ]
+  }
+  

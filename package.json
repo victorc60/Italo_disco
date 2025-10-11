@@ -1,11 +1,12 @@
 {
   "name": "imparo-italiano-bot",
-  "version": "1.0.0",
-  "description": "A Telegram bot powered by ChatGPT to help learn Italian language",
-  "main": "bot.js",
+  "version": "2.0.0",
+  "description": "A Telegram bot powered by ChatGPT to help learn Italian language with structured 12-week curriculum",
+  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "start": "node bot.js",
-    "dev": "node --watch bot.js"
+    "start": "node index.js",
+    "dev": "node --watch index.js"
   },
   "keywords": [
     "telegram",
@@ -13,14 +14,20 @@
     "italian",
     "language-learning",
     "chatgpt",
-    "openai"
+    "openai",
+    "scheduled-learning"
   ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "node-telegram-bot-api": "^0.66.0",
     "openai": "^4.63.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3",
+    "mysql2": "^3.11.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
 
