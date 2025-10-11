@@ -75,7 +75,7 @@ bot.onText(/\/start/, async (msg) => {
 ${firstName}, I'm your AI-powered Italian learning assistant with a structured 12-week curriculum!
 
 📚 *How it works:*
-• *08:00 UTC* - Daily vocabulary (5 words)
+• *08:00 UTC* - Daily vocabulary (25 words)
 • *20:00 UTC* - Evening story using today's words
 • *21:00 UTC* - Practice exercises
 • *Sunday 19:00 UTC* - Weekly quiz

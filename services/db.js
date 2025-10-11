@@ -7,6 +7,10 @@ import mysql from 'mysql2/promise';
 
 let pool = null;
 
+// In-memory storage for demo mode (when MySQL is not configured)
+const inMemoryUsers = new Map();
+const inMemoryVocabulary = new Map();
+
 /**
  * Initialize database connection pool
  * @returns {Promise<mysql.Pool|null>} Connection pool or null if unavailable
@@ -128,13 +132,24 @@ async function createTables() {
  */
 export async function registerUser(telegramId, username = null, firstName = null) {
   if (!pool) {
-    return {
+    // Demo mode: use in-memory storage
+    if (inMemoryUsers.has(telegramId)) {
+      return inMemoryUsers.get(telegramId);
+    }
+    
+    const user = {
       telegram_id: telegramId,
+      username,
+      first_name: firstName,
       start_date: new Date(),
       current_week: 1,
       current_day: 1,
       is_active: true
     };
+    
+    inMemoryUsers.set(telegramId, user);
+    console.log(`✅ User ${telegramId} registered in memory (demo mode)`);
+    return user;
   }
 
   try {
@@ -175,7 +190,10 @@ export async function registerUser(telegramId, username = null, firstName = null
  * @returns {Promise<Object|null>} User data or null
  */
 export async function getUser(telegramId) {
-  if (!pool) return null;
+  if (!pool) {
+    // Demo mode: get from in-memory storage
+    return inMemoryUsers.get(telegramId) || null;
+  }
 
   try {
     const [rows] = await pool.execute(
@@ -194,7 +212,10 @@ export async function getUser(telegramId) {
  * @returns {Promise<Array>} Array of active users
  */
 export async function getAllActiveUsers() {
-  if (!pool) return [];
+  if (!pool) {
+    // Demo mode: return all in-memory users
+    return Array.from(inMemoryUsers.values()).filter(u => u.is_active);
+  }
 
   try {
     const [rows] = await pool.execute(
@@ -289,7 +310,13 @@ export async function saveQuizResult(telegramId, weekNumber, score, totalQuestio
  * @param {Array} words - Array of word objects
  */
 export async function saveVocabulary(telegramId, weekNumber, words) {
-  if (!pool) return;
+  if (!pool) {
+    // Demo mode: save to in-memory storage
+    const key = `${telegramId}_${weekNumber}`;
+    const existing = inMemoryVocabulary.get(key) || [];
+    inMemoryVocabulary.set(key, [...existing, ...words]);
+    return;
+  }
 
   try {
     for (const word of words) {
@@ -310,7 +337,11 @@ export async function saveVocabulary(telegramId, weekNumber, words) {
  * @returns {Promise<Array>} Array of words
  */
 export async function getWeekVocabulary(telegramId, weekNumber) {
-  if (!pool) return [];
+  if (!pool) {
+    // Demo mode: get from in-memory storage
+    const key = `${telegramId}_${weekNumber}`;
+    return inMemoryVocabulary.get(key) || [];
+  }
 
   try {
     const [rows] = await pool.execute(
