@@ -15,12 +15,13 @@ if (!process.env.OPENAI_API_KEY) {
 
 console.log('✅ Environment variables loaded successfully');
 
+
 // Initialize Telegram Bot
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN?.trim(), { polling: true });
 
 // Initialize OpenAI
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY?.trim(),
 });
 
 // Store conversation history for each user
