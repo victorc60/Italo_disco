@@ -229,6 +229,32 @@ export async function getAllActiveUsers() {
 }
 
 /**
+ * Update user's start date
+ * @param {number} telegramId - User's Telegram ID
+ * @param {Date} startDate - New start date
+ */
+export async function updateUserStartDate(telegramId, startDate) {
+  if (!pool) {
+    // Demo mode: update in-memory storage
+    const user = inMemoryUsers.get(telegramId);
+    if (user) {
+      user.start_date = startDate;
+      inMemoryUsers.set(telegramId, user);
+    }
+    return;
+  }
+
+  try {
+    await pool.execute(
+      'UPDATE users SET start_date = ?, updated_at = NOW() WHERE telegram_id = ?',
+      [startDate, telegramId]
+    );
+  } catch (error) {
+    console.error('Error updating start date:', error);
+  }
+}
+
+/**
  * Update user progress
  * @param {number} telegramId - User's Telegram ID
  * @param {number} week - Current week
@@ -370,6 +396,7 @@ export default {
   registerUser,
   getUser,
   getAllActiveUsers,
+  updateUserStartDate,
   updateUserProgress,
   saveDailyProgress,
   saveQuizResult,

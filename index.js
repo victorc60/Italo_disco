@@ -66,13 +66,25 @@ bot.onText(/\/start/, async (msg) => {
   const firstName = msg.from.first_name;
 
   try {
-    // Register or get user
-    const user = await db.registerUser(userId, username, firstName);
+    // Check if user already exists
+    let user = await db.getUser(userId);
+    const isNewUser = !user;
     
-    const welcomeMessage = `
+    // Register only if new user
+    if (!user) {
+      user = await db.registerUser(userId, username, firstName);
+    }
+    
+    // Get current progress
+    const currentTask = await planService.getCurrentTask(user.start_date);
+    
+    const welcomeMessage = isNewUser ? `
 🇮🇹 *Benvenuto! Welcome to Imparo Italiano!* 🇮🇹
 
-${firstName}, I'm your AI-powered Italian learning assistant with a structured 12-week curriculum!
+${firstName}, I'm your AI-powered Italian learning assistant with a structured 12-week curriculum!` : `
+🇮🇹 *Welcome back, ${firstName}!* 🇮🇹
+
+You're currently on *Week ${currentTask.weekNumber}, Day ${currentTask.dayNumber}* of your Italian journey!
 
 📚 *How it works:*
 • *08:00 UTC* - Daily vocabulary (25 words)
@@ -96,10 +108,10 @@ Week 4: Daily Routine
 /vocab - Get vocabulary
 /help - Get help
 
-*Ready to start your Italian journey?*
-Type /today to begin! 🚀
+*Ready to ${isNewUser ? 'start' : 'continue'} your Italian journey?*
+Type /today to ${isNewUser ? 'begin' : 'see today\'s lesson'}! 🚀
 
-_Note: Messages are sent at specific times each day. You can also request content anytime using commands!_
+${isNewUser ? '_Note: Messages are sent at specific times each day. You can also request content anytime using commands!_' : `_Your learning journey started on ${new Date(user.start_date).toDateString()}_`}
 `;
     
     await bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
@@ -327,6 +339,46 @@ bot.onText(/\/quiz/, async (msg) => {
   }
 });
 
+// Command: /setday - Manually set your start day (for testing)
+bot.onText(/\/setday (\d+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const daysAgo = parseInt(match[1]);
+
+  try {
+    const user = await db.getUser(userId);
+    if (!user) {
+      await bot.sendMessage(chatId, 'Please use /start first!');
+      return;
+    }
+
+    // Set start date to X days ago
+    const newStartDate = new Date();
+    newStartDate.setDate(newStartDate.getDate() - daysAgo);
+
+    // Update user's start date
+    await db.updateUserStartDate(userId, newStartDate);
+    
+    // Calculate new progress
+    const progress = planService.calculateProgress(newStartDate);
+    const currentTask = await planService.getCurrentTask(newStartDate);
+
+    await bot.sendMessage(chatId, `✅ *Start date adjusted!*
+
+Start date set to: ${newStartDate.toDateString()} (${daysAgo} days ago)
+
+*Current Progress:*
+Week ${progress.weekNumber}, Day ${progress.dayNumber}
+Theme: ${currentTask.theme}
+Task: ${currentTask.task.task}
+
+Type /today to get your current lesson!`, { parse_mode: 'Markdown' });
+  } catch (error) {
+    console.error('Error in /setday:', error);
+    await bot.sendMessage(chatId, '❌ Error setting start date.');
+  }
+});
+
 // Command: /help
 bot.onText(/\/help/, async (msg) => {
   const chatId = msg.chat.id;
@@ -347,6 +399,7 @@ bot.onText(/\/help/, async (msg) => {
 /week - See this week's plan
 /vocab - Get vocabulary for today
 /quiz - Take a practice quiz
+/setday <days> - Set start date (e.g., /setday 1 = started yesterday)
 /help - Show this help message
 
 *Free Conversation:*
