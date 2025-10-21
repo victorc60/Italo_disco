@@ -1,183 +1,64 @@
 import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 /**
- * Database service for managing users and their learning progress
- * Uses MySQL for production, with graceful fallback for development
+ * Database Service - Handles all database operations
+ * Manages user data, progress tracking, and vocabulary storage
  */
 
-let pool = null;
-
-// In-memory storage for demo mode (when MySQL is not configured)
-const inMemoryUsers = new Map();
-const inMemoryVocabulary = new Map();
+let connection = null;
 
 /**
- * Initialize database connection pool
- * @returns {Promise<mysql.Pool|null>} Connection pool or null if unavailable
+ * Initialize database connection
  */
 export async function initializeDatabase() {
   try {
-    // Check if MySQL credentials are provided
-    if (!process.env.MYSQL_HOST || !process.env.MYSQL_DATABASE) {
-      console.log('⚠️  MySQL not configured. Running in demo mode (no persistence).');
-      return null;
+    // For now, we'll use a simple in-memory storage
+    // In production, you would connect to MySQL/PostgreSQL
+    console.log('✅ Database initialized (in-memory storage)');
+    
+    // Initialize in-memory storage
+    if (!global.userStorage) {
+      global.userStorage = new Map();
     }
-
-    pool = mysql.createPool({
-      host: process.env.MYSQL_HOST,
-      port: process.env.MYSQL_PORT || 3306,
-      user: process.env.MYSQL_USER,
-      password: process.env.MYSQL_PASSWORD,
-      database: process.env.MYSQL_DATABASE,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    });
-
-    // Test connection
-    const connection = await pool.getConnection();
-    console.log('✅ MySQL database connected successfully');
-    connection.release();
-
-    // Create tables if they don't exist
-    await createTables();
-
-    return pool;
-  } catch (error) {
-    console.error('❌ Database connection error:', error.message);
-    console.log('⚠️  Running in demo mode without database persistence.');
-    return null;
-  }
-}
-
-/**
- * Create necessary database tables
- */
-async function createTables() {
-  if (!pool) return;
-
-  try {
-    // Users table
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS users (
-        telegram_id BIGINT PRIMARY KEY,
-        username VARCHAR(255),
-        first_name VARCHAR(255),
-        start_date DATE NOT NULL,
-        current_week INT DEFAULT 1,
-        current_day INT DEFAULT 1,
-        timezone VARCHAR(50) DEFAULT 'UTC',
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Daily progress tracking
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS daily_progress (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        telegram_id BIGINT,
-        week_number INT,
-        day_number INT,
-        task_completed BOOLEAN DEFAULT FALSE,
-        words_learned TEXT,
-        story_read BOOLEAN DEFAULT FALSE,
-        sentences_submitted TEXT,
-        completed_at TIMESTAMP,
-        FOREIGN KEY (telegram_id) REFERENCES users(telegram_id) ON DELETE CASCADE,
-        UNIQUE KEY unique_day (telegram_id, week_number, day_number)
-      )
-    `);
-
-    // Weekly quiz results
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS quiz_results (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        telegram_id BIGINT,
-        week_number INT,
-        score INT,
-        total_questions INT,
-        completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (telegram_id) REFERENCES users(telegram_id) ON DELETE CASCADE
-      )
-    `);
-
-    // Vocabulary learned by users
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS user_vocabulary (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        telegram_id BIGINT,
-        week_number INT,
-        italian_word VARCHAR(255),
-        english_translation VARCHAR(255),
-        example_sentence TEXT,
-        learned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (telegram_id) REFERENCES users(telegram_id) ON DELETE CASCADE
-      )
-    `);
-
-    console.log('✅ Database tables created/verified');
-  } catch (error) {
-    console.error('❌ Error creating tables:', error.message);
-  }
-}
-
-/**
- * Register or get existing user
- * @param {number} telegramId - User's Telegram ID
- * @param {string} username - Username
- * @param {string} firstName - First name
- * @returns {Promise<Object>} User data
- */
-export async function registerUser(telegramId, username = null, firstName = null) {
-  if (!pool) {
-    // Demo mode: use in-memory storage
-    if (inMemoryUsers.has(telegramId)) {
-      return inMemoryUsers.get(telegramId);
+    if (!global.vocabularyStorage) {
+      global.vocabularyStorage = new Map();
+    }
+    if (!global.progressStorage) {
+      global.progressStorage = new Map();
     }
     
+    return true;
+  } catch (error) {
+    console.error('❌ Database initialization error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Register a new user
+ * @param {number} userId - Telegram user ID
+ * @param {string} username - Telegram username
+ * @param {string} firstName - User's first name
+ * @returns {Object} User object
+ */
+export async function registerUser(userId, username, firstName) {
+  try {
     const user = {
-      telegram_id: telegramId,
-      username,
+      user_id: userId,
+      username: username || null,
       first_name: firstName,
       start_date: new Date(),
-      current_week: 1,
-      current_day: 1,
-      is_active: true
+      is_active: true,
+      created_at: new Date()
     };
     
-    inMemoryUsers.set(telegramId, user);
-    console.log(`✅ User ${telegramId} registered in memory (demo mode)`);
+    global.userStorage.set(userId, user);
+    console.log(`✅ User registered: ${firstName} (ID: ${userId})`);
+    
     return user;
-  }
-
-  try {
-    // Check if user exists
-    const [rows] = await pool.execute(
-      'SELECT * FROM users WHERE telegram_id = ?',
-      [telegramId]
-    );
-
-    if (rows.length > 0) {
-      return rows[0];
-    }
-
-    // Create new user
-    await pool.execute(
-      'INSERT INTO users (telegram_id, username, first_name, start_date) VALUES (?, ?, ?, ?)',
-      [telegramId, username, firstName, new Date()]
-    );
-
-    return {
-      telegram_id: telegramId,
-      username,
-      first_name: firstName,
-      start_date: new Date(),
-      current_week: 1,
-      current_day: 1,
-      is_active: true
-    };
   } catch (error) {
     console.error('Error registering user:', error);
     throw error;
@@ -185,22 +66,13 @@ export async function registerUser(telegramId, username = null, firstName = null
 }
 
 /**
- * Get user data
- * @param {number} telegramId - User's Telegram ID
- * @returns {Promise<Object|null>} User data or null
+ * Get user by ID
+ * @param {number} userId - User ID
+ * @returns {Object|null} User object or null
  */
-export async function getUser(telegramId) {
-  if (!pool) {
-    // Demo mode: get from in-memory storage
-    return inMemoryUsers.get(telegramId) || null;
-  }
-
+export async function getUser(userId) {
   try {
-    const [rows] = await pool.execute(
-      'SELECT * FROM users WHERE telegram_id = ?',
-      [telegramId]
-    );
-    return rows.length > 0 ? rows[0] : null;
+    return global.userStorage.get(userId) || null;
   } catch (error) {
     console.error('Error getting user:', error);
     return null;
@@ -209,19 +81,13 @@ export async function getUser(telegramId) {
 
 /**
  * Get all active users
- * @returns {Promise<Array>} Array of active users
+ * @returns {Array} Array of active users
  */
 export async function getAllActiveUsers() {
-  if (!pool) {
-    // Demo mode: return all in-memory users
-    return Array.from(inMemoryUsers.values()).filter(u => u.is_active);
-  }
-
   try {
-    const [rows] = await pool.execute(
-      'SELECT * FROM users WHERE is_active = TRUE'
-    );
-    return rows;
+    const users = Array.from(global.userStorage.values())
+      .filter(user => user.is_active);
+    return users;
   } catch (error) {
     console.error('Error getting active users:', error);
     return [];
@@ -229,155 +95,158 @@ export async function getAllActiveUsers() {
 }
 
 /**
- * Update user's start date
- * @param {number} telegramId - User's Telegram ID
- * @param {Date} startDate - New start date
+ * Update user start date (for testing)
+ * @param {number} userId - User ID
+ * @param {Date} newStartDate - New start date
  */
-export async function updateUserStartDate(telegramId, startDate) {
-  if (!pool) {
-    // Demo mode: update in-memory storage
-    const user = inMemoryUsers.get(telegramId);
-    if (user) {
-      user.start_date = startDate;
-      inMemoryUsers.set(telegramId, user);
-    }
-    return;
-  }
-
+export async function updateUserStartDate(userId, newStartDate) {
   try {
-    await pool.execute(
-      'UPDATE users SET start_date = ?, updated_at = NOW() WHERE telegram_id = ?',
-      [startDate, telegramId]
-    );
+    const user = global.userStorage.get(userId);
+    if (user) {
+      user.start_date = newStartDate;
+      global.userStorage.set(userId, user);
+      console.log(`✅ Updated start date for user ${userId}`);
+    }
   } catch (error) {
-    console.error('Error updating start date:', error);
+    console.error('Error updating user start date:', error);
+    throw error;
   }
 }
 
 /**
- * Update user progress
- * @param {number} telegramId - User's Telegram ID
- * @param {number} week - Current week
- * @param {number} day - Current day
+ * Save vocabulary for a user and week
+ * @param {number} userId - User ID
+ * @param {number} weekNumber - Week number
+ * @param {Array} vocabulary - Array of vocabulary objects
  */
-export async function updateUserProgress(telegramId, week, day) {
-  if (!pool) return;
-
+export async function saveVocabulary(userId, weekNumber, vocabulary) {
   try {
-    await pool.execute(
-      'UPDATE users SET current_week = ?, current_day = ?, updated_at = NOW() WHERE telegram_id = ?',
-      [week, day, telegramId]
-    );
+    const key = `${userId}_${weekNumber}`;
+    global.vocabularyStorage.set(key, {
+      userId,
+      weekNumber,
+      vocabulary,
+      saved_at: new Date()
+    });
+    
+    console.log(`✅ Vocabulary saved for user ${userId}, week ${weekNumber}`);
   } catch (error) {
-    console.error('Error updating user progress:', error);
+    console.error('Error saving vocabulary:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get vocabulary for a user and week
+ * @param {number} userId - User ID
+ * @param {number} weekNumber - Week number
+ * @returns {Array} Array of vocabulary objects
+ */
+export async function getWeekVocabulary(userId, weekNumber) {
+  try {
+    const key = `${userId}_${weekNumber}`;
+    const vocabData = global.vocabularyStorage.get(key);
+    
+    if (vocabData && vocabData.vocabulary) {
+      return vocabData.vocabulary;
+    }
+    
+    // Return empty array if no vocabulary found
+    return [];
+  } catch (error) {
+    console.error('Error getting week vocabulary:', error);
+    return [];
   }
 }
 
 /**
  * Save daily progress
- * @param {number} telegramId - User's Telegram ID
+ * @param {number} userId - User ID
  * @param {number} weekNumber - Week number
  * @param {number} dayNumber - Day number
- * @param {Object} progressData - Progress details
+ * @param {Object} progress - Progress data
  */
-export async function saveDailyProgress(telegramId, weekNumber, dayNumber, progressData) {
-  if (!pool) return;
-
+export async function saveDailyProgress(userId, weekNumber, dayNumber, progress) {
   try {
-    await pool.execute(
-      `INSERT INTO daily_progress 
-       (telegram_id, week_number, day_number, task_completed, words_learned, story_read, sentences_submitted, completed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-       ON DUPLICATE KEY UPDATE
-       task_completed = VALUES(task_completed),
-       words_learned = VALUES(words_learned),
-       story_read = VALUES(story_read),
-       sentences_submitted = VALUES(sentences_submitted),
-       completed_at = NOW()`,
-      [
-        telegramId,
-        weekNumber,
-        dayNumber,
-        progressData.taskCompleted || false,
-        progressData.wordsLearned || null,
-        progressData.storyRead || false,
-        progressData.sentencesSubmitted || null
-      ]
-    );
+    const key = `${userId}_${weekNumber}_${dayNumber}`;
+    global.progressStorage.set(key, {
+      userId,
+      weekNumber,
+      dayNumber,
+      progress,
+      completed_at: new Date()
+    });
+    
+    console.log(`✅ Progress saved for user ${userId}, week ${weekNumber}, day ${dayNumber}`);
   } catch (error) {
     console.error('Error saving daily progress:', error);
+    throw error;
   }
 }
 
 /**
- * Save quiz result
- * @param {number} telegramId - User's Telegram ID
+ * Get daily progress
+ * @param {number} userId - User ID
  * @param {number} weekNumber - Week number
- * @param {number} score - Score achieved
- * @param {number} totalQuestions - Total questions
+ * @param {number} dayNumber - Day number
+ * @returns {Object|null} Progress object or null
  */
-export async function saveQuizResult(telegramId, weekNumber, score, totalQuestions) {
-  if (!pool) return;
-
+export async function getDailyProgress(userId, weekNumber, dayNumber) {
   try {
-    await pool.execute(
-      'INSERT INTO quiz_results (telegram_id, week_number, score, total_questions) VALUES (?, ?, ?, ?)',
-      [telegramId, weekNumber, score, totalQuestions]
-    );
-  } catch (error) {
-    console.error('Error saving quiz result:', error);
-  }
-}
-
-/**
- * Save learned vocabulary
- * @param {number} telegramId - User's Telegram ID
- * @param {number} weekNumber - Week number
- * @param {Array} words - Array of word objects
- */
-export async function saveVocabulary(telegramId, weekNumber, words) {
-  if (!pool) {
-    // Demo mode: save to in-memory storage
-    const key = `${telegramId}_${weekNumber}`;
-    const existing = inMemoryVocabulary.get(key) || [];
-    inMemoryVocabulary.set(key, [...existing, ...words]);
-    return;
-  }
-
-  try {
-    for (const word of words) {
-      await pool.execute(
-        'INSERT INTO user_vocabulary (telegram_id, week_number, italian_word, english_translation, example_sentence) VALUES (?, ?, ?, ?, ?)',
-        [telegramId, weekNumber, word.italian, word.english, word.example]
-      );
+    const key = `${userId}_${weekNumber}_${dayNumber}`;
+    const progressData = global.progressStorage.get(key);
+    
+    if (progressData && progressData.progress) {
+      return progressData.progress;
     }
+    
+    return null;
   } catch (error) {
-    console.error('Error saving vocabulary:', error);
+    console.error('Error getting daily progress:', error);
+    return null;
   }
 }
 
 /**
- * Get user's vocabulary for a week
- * @param {number} telegramId - User's Telegram ID
- * @param {number} weekNumber - Week number
- * @returns {Promise<Array>} Array of words
+ * Get user statistics
+ * @param {number} userId - User ID
+ * @returns {Object} User statistics
  */
-export async function getWeekVocabulary(telegramId, weekNumber) {
-  if (!pool) {
-    // Demo mode: get from in-memory storage
-    const key = `${telegramId}_${weekNumber}`;
-    return inMemoryVocabulary.get(key) || [];
-  }
-
+export async function getUserStats(userId) {
   try {
-    const [rows] = await pool.execute(
-      'SELECT * FROM user_vocabulary WHERE telegram_id = ? AND week_number = ?',
-      [telegramId, weekNumber]
-    );
-    return rows;
+    const user = await getUser(userId);
+    if (!user) {
+      return null;
+    }
+    
+    // Count vocabulary learned
+    let totalVocabulary = 0;
+    for (let week = 1; week <= 12; week++) {
+      const vocab = await getWeekVocabulary(userId, week);
+      totalVocabulary += vocab.length;
+    }
+    
+    // Count completed days
+    let completedDays = 0;
+    for (let week = 1; week <= 12; week++) {
+      for (let day = 1; day <= 7; day++) {
+        const progress = await getDailyProgress(userId, week, day);
+        if (progress && progress.taskCompleted) {
+          completedDays++;
+        }
+      }
+    }
+    
+    return {
+      userId,
+      totalVocabulary,
+      completedDays,
+      startDate: user.start_date,
+      isActive: user.is_active
+    };
   } catch (error) {
-    console.error('Error getting vocabulary:', error);
-    return [];
+    console.error('Error getting user stats:', error);
+    return null;
   }
 }
 
@@ -385,23 +254,43 @@ export async function getWeekVocabulary(telegramId, weekNumber) {
  * Close database connection
  */
 export async function closeDatabase() {
-  if (pool) {
-    await pool.end();
+  try {
+    if (connection) {
+      await connection.end();
+      connection = null;
+    }
     console.log('✅ Database connection closed');
+  } catch (error) {
+    console.error('Error closing database:', error);
   }
 }
 
-export default {
-  initializeDatabase,
-  registerUser,
-  getUser,
-  getAllActiveUsers,
-  updateUserStartDate,
-  updateUserProgress,
-  saveDailyProgress,
-  saveQuizResult,
-  saveVocabulary,
-  getWeekVocabulary,
-  closeDatabase
-};
-
+/**
+ * Reset user data (for testing)
+ * @param {number} userId - User ID
+ */
+export async function resetUserData(userId) {
+  try {
+    // Remove user data
+    global.userStorage.delete(userId);
+    
+    // Remove vocabulary data
+    for (let week = 1; week <= 12; week++) {
+      const key = `${userId}_${week}`;
+      global.vocabularyStorage.delete(key);
+    }
+    
+    // Remove progress data
+    for (let week = 1; week <= 12; week++) {
+      for (let day = 1; day <= 7; day++) {
+        const key = `${userId}_${week}_${day}`;
+        global.progressStorage.delete(key);
+      }
+    }
+    
+    console.log(`✅ User data reset for user ${userId}`);
+  } catch (error) {
+    console.error('Error resetting user data:', error);
+    throw error;
+  }
+}

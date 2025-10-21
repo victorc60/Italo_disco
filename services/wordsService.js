@@ -1,8 +1,8 @@
 import OpenAI from 'openai';
 
 /**
- * Service for generating Italian vocabulary using OpenAI
- * Generates words based on weekly themes from plan.json
+ * Words Service - Handles vocabulary generation and management
+ * Uses OpenAI to generate Italian vocabulary based on themes and daily tasks
  */
 
 let openai = null;
@@ -11,227 +11,258 @@ let openai = null;
  * Initialize OpenAI client
  */
 export function initializeOpenAI() {
-  if (!openai && process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY?.trim(),
-    });
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY environment variable is required');
   }
+  
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+  
+  console.log('✅ OpenAI initialized for words service');
   return openai;
 }
 
 /**
- * Generate daily vocabulary words based on theme and task
- * @param {string} theme - Weekly theme (e.g., "Greetings and Basic Phrases")
+ * Generate daily words based on theme and task
+ * @param {string} theme - Week theme
  * @param {string} task - Daily task description
- * @param {string} focus - Day focus (vocabulary, grammar, practice, etc.)
- * @param {number} count - Number of words to generate (default: 5)
- * @returns {Promise<Object>} Generated words with translations and examples
+ * @param {string} focus - Daily focus (vocabulary, grammar, etc.)
+ * @returns {Array} Array of word objects
  */
-export async function generateDailyWords(theme, task, focus, count = 8) {
-  const client = initializeOpenAI();
-  
-  if (!client) {
-    throw new Error('OpenAI API not configured');
-  }
-
+export async function generateDailyWords(theme, task, focus) {
   try {
-    const prompt = `You are an imaginative Italian language teacher who combines learning with storytelling.
-Generate ${count} Italian words or phrases related to this theme: "${theme}".
-Task: "${task}"
-Focus: "${focus}"
+    if (!openai) {
+      initializeOpenAI();
+    }
+    
+    const systemPrompt = `You are an expert Italian language teacher. Generate 20 Italian words related to the theme "${theme}" for a daily vocabulary lesson.
 
-Include:
-1. A short fun or inspiring *scene* (5–8 sentences) from Italian life, a famous person, or pop culture, where these words naturally appear.
-2. For each word:
-   - Italian word/phrase
-   - English translation
-   - Example sentence (Italian + English)
-   - Short cultural or pronunciation tip (optional)
+Requirements:
+- Generate exactly 20 words
+- Include common, useful words that beginners can learn
+- Each word should have: Italian word, English translation, phonetic pronunciation, and a simple example sentence
+- Focus on practical vocabulary that relates to the theme
+- Make sure words are appropriate for beginners to intermediate learners
 
-The goal: make it feel like the student is learning through a vivid, funny, or emotional story — not just a list.
-
-Format:
-- 🎬 Short Story (2–3 paragraphs)
-- 📚 Vocabulary List (numbered 1 to ${count})
-- 💡 Closing tip (motivation or cultural insight).`;
-
-    const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a passionate Italian teacher who loves storytelling and culture. You always make language feel alive and emotional.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.9,
-      max_tokens: 1600,
-    });
-
-    const response = completion.choices[0].message.content;
-
-    return {
-      theme,
-      task,
-      focus,
-      content: response,
-      generatedAt: new Date().toISOString()
-    };
-  } catch (error) {
-    console.error('Error generating words:', error);
-    throw error;
-  }
-}
-/**
- * Generate vocabulary specifically for vocabulary-focused days
- * Returns structured format suitable for database storage
- * @param {string} theme - Weekly theme
- * @param {string} task - Daily task
- * @returns {Promise<Array>} Array of word objects
- */
-export async function generateStructuredVocabulary(theme, task) {
-  const client = initializeOpenAI();
-  
-  if (!client) {
-    throw new Error('OpenAI API not configured');
-  }
-
-  try {
-    const prompt = `Generate exactly 25 Italian vocabulary words for the theme: "${theme}".
-Task: "${task}"
-
-Return ONLY a valid JSON array with this exact structure:
+Format your response as a JSON array with this structure:
 [
   {
-    "italian": "ciao",
-    "english": "hello",
-    "example": "Ciao! Come stai?",
-    "exampleTranslation": "Hello! How are you?"
+    "italian": "word in Italian",
+    "english": "English translation",
+    "pronunciation": "phonetic pronunciation",
+    "example": "example sentence in Italian",
+    "translation": "English translation of example"
   }
-]
+]`;
 
-Important: Return ONLY the JSON array, no additional text or markdown.`;
-
-    const completion = await client.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content: 'You are a vocabulary generator. Return ONLY valid JSON arrays, no additional text.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Generate vocabulary for theme: ${theme}, task: ${task}, focus: ${focus}` }
       ],
-      temperature: 0.6,
+      temperature: 0.7,
       max_tokens: 2000,
     });
 
-    const response = completion.choices[0].message.content.trim();
+    const response = completion.choices[0].message.content;
     
-    // Try to extract JSON if wrapped in markdown
-    let jsonText = response;
-    if (response.includes('```json')) {
-      jsonText = response.split('```json')[1].split('```')[0].trim();
-    } else if (response.includes('```')) {
-      jsonText = response.split('```')[1].split('```')[0].trim();
-    }
-
-    const words = JSON.parse(jsonText);
+    // Parse JSON response
+    const words = JSON.parse(response);
+    
+    console.log(`✅ Generated ${words.length} words for theme: ${theme}`);
     return words;
+    
   } catch (error) {
-    console.error('Error generating structured vocabulary:', error);
-    // Return fallback data
-    return generateFallbackVocabulary(theme);
+    console.error('Error generating daily words:', error);
+    
+    // Fallback vocabulary if OpenAI fails
+    return getFallbackVocabulary(theme);
   }
 }
 
 /**
- * Fallback vocabulary if API fails
+ * Generate structured vocabulary for a theme
+ * @param {string} theme - Week theme
+ * @param {string} task - Daily task description
+ * @returns {Array} Array of structured vocabulary objects
  */
-function generateFallbackVocabulary(theme) {
-  return [
-    {
-      italian: 'ciao',
-      english: 'hello/goodbye',
-      example: 'Ciao! Come stai?',
-      exampleTranslation: 'Hello! How are you?'
-    },
-    {
-      italian: 'grazie',
-      english: 'thank you',
-      example: 'Grazie mille!',
-      exampleTranslation: 'Thank you very much!'
-    },
-    {
-      italian: 'per favore',
-      english: 'please',
-      example: 'Un caffè, per favore.',
-      exampleTranslation: 'A coffee, please.'
-    },
-    {
-      italian: 'scusa',
-      english: 'excuse me/sorry',
-      example: 'Scusa, dov\'è la stazione?',
-      exampleTranslation: 'Excuse me, where is the station?'
-    },
-    {
-      italian: 'buongiorno',
-      english: 'good morning',
-      example: 'Buongiorno! Come va?',
-      exampleTranslation: 'Good morning! How are you?'
+export async function generateStructuredVocabulary(theme, task) {
+  try {
+    if (!openai) {
+      initializeOpenAI();
     }
-  ];
+    
+    const systemPrompt = `You are an expert Italian language teacher. Generate a comprehensive vocabulary list for the theme "${theme}".
+
+Requirements:
+- Generate 25-30 words organized by categories
+- Include: nouns, verbs, adjectives, and useful phrases
+- Each word should have: Italian word, English translation, phonetic pronunciation, and example sentence
+- Organize words logically by category
+- Include common expressions and phrases related to the theme
+
+Format your response as a JSON array with this structure:
+[
+  {
+    "category": "category name (e.g., 'Nouns', 'Verbs', 'Adjectives', 'Phrases')",
+    "words": [
+      {
+        "italian": "word in Italian",
+        "english": "English translation",
+        "pronunciation": "phonetic pronunciation",
+        "example": "example sentence in Italian",
+        "translation": "English translation of example"
+      }
+    ]
+  }
+]`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Generate structured vocabulary for theme: ${theme}, task: ${task}` }
+      ],
+      temperature: 0.7,
+      max_tokens: 2500,
+    });
+
+    const response = completion.choices[0].message.content;
+    
+    // Parse JSON response
+    const structuredVocab = JSON.parse(response);
+    
+    console.log(`✅ Generated structured vocabulary for theme: ${theme}`);
+    return structuredVocab;
+    
+  } catch (error) {
+    console.error('Error generating structured vocabulary:', error);
+    
+    // Fallback structured vocabulary
+    return getFallbackStructuredVocabulary(theme);
+  }
 }
 
 /**
- * Format words for Telegram message
- * @param {Object} wordsData - Words data from generateDailyWords
- * @param {string} emoji - Emoji to use in header
- * @returns {string} Formatted message
- */
-export function formatWordsMessage(wordsData, emoji = '📚') {
-  return `${emoji} *Italian Words - Day ${wordsData.focus}*
-
-*Theme:* ${wordsData.theme}
-*Today's Task:* ${wordsData.task}
-
-${wordsData.content}
-
-_Keep learning! Practice these words today._ ✨`;
-}
-
-/**
- * Format structured vocabulary for Telegram
+ * Format words message for Telegram
  * @param {Array} words - Array of word objects
- * @param {string} theme - Theme name
  * @returns {string} Formatted message
  */
-export function formatStructuredWords(words, theme) {
-  let message = `📚 *Daily Vocabulary - ${theme}*\n\n`;
+export function formatWordsMessage(words) {
+  let message = `📚 *Daily Vocabulary* 📚\n\n`;
   
-  words.slice(0, 5).forEach((word, index) => {
-    message += `*${index + 1}. ${word.italian}*\n`;
-    message += `   🇬🇧 ${word.english}\n`;
-    message += `   💬 _"${word.example}"_\n`;
-    message += `   📝 ${word.exampleTranslation}\n\n`;
+  words.forEach((word, index) => {
+    message += `*${index + 1}. ${word.italian}* - ${word.english}\n`;
+    message += `🔊 ${word.pronunciation}\n`;
+    message += `📝 *Example:* ${word.example}\n`;
+    message += `   _${word.translation}_\n\n`;
   });
-
-  message += `_💡 Practice using these words in your own sentences today!_`;
+  
+  message += `\n*Buono studio!* (Happy studying!) 📖✨\n`;
+  message += `\n_Tip: Practice pronouncing each word out loud!_ 🗣️`;
   
   return message;
 }
 
-export default {
-  initializeOpenAI,
-  generateDailyWords,
-  generateStructuredVocabulary,
-  formatWordsMessage,
-  formatStructuredWords
-};
+/**
+ * Format structured words message for Telegram
+ * @param {Array} structuredVocab - Array of structured vocabulary objects
+ * @param {string} theme - Week theme
+ * @returns {string} Formatted message
+ */
+export function formatStructuredWords(structuredVocab, theme) {
+  let message = `📚 *Structured Vocabulary - ${theme}* 📚\n\n`;
+  
+  structuredVocab.forEach(category => {
+    message += `*${category.category.toUpperCase()}*\n`;
+    
+    category.words.forEach(word => {
+      message += `• *${word.italian}* - ${word.english}\n`;
+      message += `  🔊 ${word.pronunciation}\n`;
+      message += `  📝 ${word.example}\n`;
+      message += `     _${word.translation}_\n\n`;
+    });
+    
+    message += `\n`;
+  });
+  
+  message += `\n*Buono studio!* (Happy studying!) 📖✨\n`;
+  message += `\n_Tip: Practice using these words in your own sentences!_ 🗣️`;
+  
+  return message;
+}
 
+/**
+ * Get fallback vocabulary when OpenAI fails
+ * @param {string} theme - Week theme
+ * @returns {Array} Array of fallback words
+ */
+function getFallbackVocabulary(theme) {
+  const fallbackWords = {
+    'Greetings and Basic Phrases': [
+      {
+        italian: 'Ciao',
+        english: 'Hello/Goodbye',
+        pronunciation: 'chow',
+        example: 'Ciao, come stai?',
+        translation: 'Hello, how are you?'
+      },
+      {
+        italian: 'Buongiorno',
+        english: 'Good morning',
+        pronunciation: 'bwon-jor-no',
+        example: 'Buongiorno, signore!',
+        translation: 'Good morning, sir!'
+      },
+      {
+        italian: 'Grazie',
+        english: 'Thank you',
+        pronunciation: 'grahts-yeh',
+        example: 'Grazie mille!',
+        translation: 'Thank you very much!'
+      }
+    ],
+    'Numbers and Dates': [
+      {
+        italian: 'Uno',
+        english: 'One',
+        pronunciation: 'oo-no',
+        example: 'Ho un gatto.',
+        translation: 'I have one cat.'
+      },
+      {
+        italian: 'Due',
+        english: 'Two',
+        pronunciation: 'doo-eh',
+        example: 'Sono le due.',
+        translation: 'It\'s two o\'clock.'
+      }
+    ]
+  };
+  
+  return fallbackWords[theme] || fallbackWords['Greetings and Basic Phrases'];
+}
 
+/**
+ * Get fallback structured vocabulary when OpenAI fails
+ * @param {string} theme - Week theme
+ * @returns {Array} Array of fallback structured vocabulary
+ */
+function getFallbackStructuredVocabulary(theme) {
+  return [
+    {
+      category: 'Nouns',
+      words: getFallbackVocabulary(theme).slice(0, 5)
+    },
+    {
+      category: 'Verbs',
+      words: getFallbackVocabulary(theme).slice(5, 10)
+    },
+    {
+      category: 'Adjectives',
+      words: getFallbackVocabulary(theme).slice(10, 15)
+    }
+  ];
+}

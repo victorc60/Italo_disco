@@ -81,15 +81,11 @@ bot.onText(/\/start/, async (msg) => {
     const welcomeMessage = isNewUser ? `
 🇮🇹 *Benvenuto! Welcome to Imparo Italiano!* 🇮🇹
 
-${firstName}, I'm your AI-powered Italian learning assistant with a structured 12-week curriculum!` : `
-🇮🇹 *Welcome back, ${firstName}!* 🇮🇹
-
-You're currently on *Week ${currentTask.weekNumber}, Day ${currentTask.dayNumber}* of your Italian journey!
+${firstName}, I'm your AI-powered Italian learning assistant with a structured 12-week curriculum!
 
 📚 *How it works:*
-• *08:00 UTC* - Daily vocabulary (25 words)
-• *20:00 UTC* - Evening story using today's words
-• *21:00 UTC* - Practice exercises
+• *08:00 UTC* - Daily learning task (vocabulary, grammar, reading, etc.)
+• *20:00 UTC* - Evening reminder and practice
 • *Sunday 19:00 UTC* - Weekly quiz
 
 📖 *12-Week Curriculum:*
@@ -108,11 +104,33 @@ Week 4: Daily Routine
 /vocab - Get vocabulary
 /help - Get help
 
-*Ready to ${isNewUser ? 'start' : 'continue'} your Italian journey?*
-Type /today to ${isNewUser ? 'begin' : 'see today\'s lesson'}! 🚀
+*Ready to start your Italian journey?*
+Type /today to begin! 🚀
 
-${isNewUser ? '_Note: Messages are sent at specific times each day. You can also request content anytime using commands!_' : `_Your learning journey started on ${new Date(user.start_date).toDateString()}_`}
-`;
+_Note: Daily tasks are sent every morning at 8:00 UTC. You can also request content anytime using commands!_
+` : `
+🇮🇹 *Welcome back, ${firstName}!* 🇮🇹
+
+You're currently on *Week ${currentTask.weekNumber}, Day ${currentTask.dayNumber}* of your Italian journey!
+
+📚 *How it works:*
+• *08:00 UTC* - Daily learning task (vocabulary, grammar, reading, etc.)
+• *20:00 UTC* - Evening reminder and practice
+• *Sunday 19:00 UTC* - Weekly quiz
+
+*Available Commands:*
+/start - Show this message
+/status - Check your progress
+/today - Get today's lesson
+/week - See this week's plan
+/quiz - Practice with a quiz
+/vocab - Get vocabulary
+/help - Get help
+
+*Ready to continue your Italian journey?*
+Type /today to see today's lesson! 🚀
+
+_Your learning journey started on ${new Date(user.start_date).toDateString()}_`;
     
     await bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
   } catch (error) {
@@ -142,6 +160,10 @@ bot.onText(/\/status/, async (msg) => {
     }
 
     const weekVocab = await db.getWeekVocabulary(userId, currentTask.weekNumber);
+    const dailyPlan = await planService.generateDailyPlan(
+      currentTask.weekNumber, 
+      currentTask.dayNumber
+    );
     
     const statusMessage = `
 📊 *Your Learning Progress*
@@ -150,8 +172,9 @@ bot.onText(/\/status/, async (msg) => {
 *Day ${currentTask.dayNumber} of 7*
 *Total Days:* ${currentTask.totalDays}
 
-*Today's Focus:* ${currentTask.task.focus}
-*Today's Task:* ${currentTask.task.task}
+*Today's Focus:* ${dailyPlan.focus}
+*Today's Task:* ${dailyPlan.task}
+*Estimated Time:* ${dailyPlan.estimatedTime}
 
 *This Week:*
 📖 Vocabulary learned: ${weekVocab.length} words
@@ -189,13 +212,19 @@ bot.onText(/\/today/, async (msg) => {
       return;
     }
 
+    // Generate daily plan
+    const dailyPlan = await planService.generateDailyPlan(
+      currentTask.weekNumber, 
+      currentTask.dayNumber
+    );
+
     // Generate content based on task focus
-    const focus = currentTask.task.focus;
+    const focus = dailyPlan.focus;
     
     if (focus === 'vocabulary') {
       const words = await wordsService.generateDailyWords(
-        currentTask.theme,
-        currentTask.task.task,
+        dailyPlan.theme,
+        dailyPlan.task,
         focus
       );
       const message = wordsService.formatWordsMessage(words);
@@ -203,36 +232,49 @@ bot.onText(/\/today/, async (msg) => {
     } else if (focus === 'reading') {
       const weekVocab = await db.getWeekVocabulary(userId, currentTask.weekNumber);
       const story = await storyService.generateTaskBasedStory(
-        currentTask.theme,
-        currentTask.task.task,
+        dailyPlan.theme,
+        dailyPlan.task,
         weekVocab
       );
       const message = storyService.formatStoryMessage(story);
       await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } else if (['practice', 'writing'].includes(focus)) {
       const weekVocab = await db.getWeekVocabulary(userId, currentTask.weekNumber);
-      const prompt = await storyService.generatePracticePrompt(currentTask.theme, weekVocab);
+      const prompt = await storyService.generatePracticePrompt(dailyPlan.theme, weekVocab);
       const message = storyService.formatPracticeMessage(prompt);
       await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } else if (focus === 'quiz') {
       const weekVocab = await db.getWeekVocabulary(userId, currentTask.weekNumber);
       const quiz = await quizService.generateWeeklyQuiz(
         currentTask.weekNumber,
-        currentTask.theme,
+        dailyPlan.theme,
         weekVocab
       );
       const message = quizService.formatQuizMessage(quiz);
       await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } else {
-      // General task
+      // General task - show the daily plan
       const taskMessage = `
-📝 *Today's Task*
+📝 *Today's Learning Plan*
 
-*Week ${currentTask.weekNumber} - Day ${currentTask.dayNumber}*
-*Theme:* ${currentTask.theme}
-*Focus:* ${currentTask.task.focus}
+*Week ${dailyPlan.weekNumber}, Day ${dailyPlan.dayNumber}*
+*Theme:* ${dailyPlan.theme}
 
-*Task:* ${currentTask.task.task}
+📚 *Today's Focus:* ${dailyPlan.focus}
+⏱️ *Estimated Time:* ${dailyPlan.estimatedTime}
+
+*Your Task:*
+${dailyPlan.description}
+
+*Exercises:*
+${dailyPlan.exercises.map(ex => `• ${ex.description}`).join('\n')}
+
+*Commands:*
+/vocab - Get vocabulary for this week
+/quiz - Practice quiz
+/week - See this week's plan
+
+*Buono studio!* (Happy studying!) 📖✨
 
 _Use /vocab to get vocabulary or chat with me for help!_ 💬
 `;
@@ -267,6 +309,7 @@ bot.onText(/\/week/, async (msg) => {
       const emoji = day.day === currentTask.dayNumber ? '👉' : '📌';
       message += `\n${emoji} *Day ${day.day}* - ${day.focus}\n`;
       message += `   ${day.task}\n`;
+      message += `   ⏱️ ${day.estimatedTime}\n`;
     });
     
     await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
@@ -291,13 +334,17 @@ bot.onText(/\/vocab/, async (msg) => {
     }
 
     const currentTask = await planService.getCurrentTask(user.start_date);
-    
-    const words = await wordsService.generateStructuredVocabulary(
-      currentTask.theme,
-      currentTask.task.task
+    const dailyPlan = await planService.generateDailyPlan(
+      currentTask.weekNumber, 
+      currentTask.dayNumber
     );
     
-    const message = wordsService.formatStructuredWords(words, currentTask.theme);
+    const words = await wordsService.generateStructuredVocabulary(
+      dailyPlan.theme,
+      dailyPlan.task
+    );
+    
+    const message = wordsService.formatStructuredWords(words, dailyPlan.theme);
     await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     
     // Save vocabulary
@@ -324,10 +371,14 @@ bot.onText(/\/quiz/, async (msg) => {
 
     const currentTask = await planService.getCurrentTask(user.start_date);
     const weekVocab = await db.getWeekVocabulary(userId, currentTask.weekNumber);
+    const dailyPlan = await planService.generateDailyPlan(
+      currentTask.weekNumber, 
+      currentTask.dayNumber
+    );
     
     const quiz = await quizService.generateWeeklyQuiz(
       currentTask.weekNumber,
-      currentTask.theme,
+      dailyPlan.theme,
       weekVocab
     );
     
@@ -362,6 +413,10 @@ bot.onText(/\/setday (\d+)/, async (msg, match) => {
     // Calculate new progress
     const progress = planService.calculateProgress(newStartDate);
     const currentTask = await planService.getCurrentTask(newStartDate);
+    const dailyPlan = await planService.generateDailyPlan(
+      currentTask.weekNumber, 
+      currentTask.dayNumber
+    );
 
     await bot.sendMessage(chatId, `✅ *Start date adjusted!*
 
@@ -370,7 +425,8 @@ Start date set to: ${newStartDate.toDateString()} (${daysAgo} days ago)
 *Current Progress:*
 Week ${progress.weekNumber}, Day ${progress.dayNumber}
 Theme: ${currentTask.theme}
-Task: ${currentTask.task.task}
+Today's Focus: ${dailyPlan.focus}
+Task: ${dailyPlan.task}
 
 Type /today to get your current lesson!`, { parse_mode: 'Markdown' });
   } catch (error) {
@@ -453,7 +509,11 @@ bot.on('message', async (msg) => {
     const context = userContext.get(userId) || {};
     if (context.awaitingPractice) {
       const weekVocab = await db.getWeekVocabulary(userId, currentTask.weekNumber);
-      const feedback = await storyService.checkUserSentences(text, currentTask.theme, weekVocab);
+      const dailyPlan = await planService.generateDailyPlan(
+        currentTask.weekNumber, 
+        currentTask.dayNumber
+      );
+      const feedback = await storyService.checkUserSentences(text, dailyPlan.theme, weekVocab);
       
       await bot.sendMessage(chatId, `✅ *Feedback on your sentences:*\n\n${feedback}`, { parse_mode: 'Markdown' });
       
@@ -483,12 +543,16 @@ bot.on('message', async (msg) => {
 async function getChatGPTResponse(userId, message, currentTask) {
   try {
     const openai = wordsService.initializeOpenAI();
+    const dailyPlan = await planService.generateDailyPlan(
+      currentTask.weekNumber, 
+      currentTask.dayNumber
+    );
     
     const systemPrompt = `You are an expert Italian language teacher helping a student in Week ${currentTask.weekNumber} of a 12-week program.
 
 Current theme: "${currentTask.theme}"
-Current task: "${currentTask.task.task}"
-Day focus: "${currentTask.task.focus}"
+Current task: "${dailyPlan.task}"
+Day focus: "${dailyPlan.focus}"
 
 Help the student with:
 - Answering questions about Italian

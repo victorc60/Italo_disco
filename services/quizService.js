@@ -1,8 +1,8 @@
 import OpenAI from 'openai';
 
 /**
- * Service for generating weekly quizzes
- * Tests vocabulary and concepts learned during the week
+ * Quiz Service - Handles quiz generation and practice exercises
+ * Uses OpenAI to generate Italian quizzes and practice questions
  */
 
 let openai = null;
@@ -11,315 +11,314 @@ let openai = null;
  * Initialize OpenAI client
  */
 export function initializeOpenAI() {
-  if (!openai && process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY?.trim(),
-    });
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY environment variable is required');
   }
+  
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+  
+  console.log('✅ OpenAI initialized for quiz service');
   return openai;
 }
 
 /**
- * Generate a weekly quiz based on the week's theme and vocabulary
- * @param {number} weekNumber - Week number (1-12)
- * @param {string} theme - Weekly theme
- * @param {Array} weekVocabulary - All vocabulary from the week
- * @returns {Promise<Object>} Generated quiz with questions and answers
+ * Generate weekly quiz
+ * @param {number} weekNumber - Week number
+ * @param {string} theme - Week theme
+ * @param {Array} vocabulary - Array of vocabulary words
+ * @returns {Object} Quiz object
  */
-export async function generateWeeklyQuiz(weekNumber, theme, weekVocabulary = []) {
-  const client = initializeOpenAI();
-  
-  if (!client) {
-    throw new Error('OpenAI API not configured');
-  }
-
+export async function generateWeeklyQuiz(weekNumber, theme, vocabulary) {
   try {
-    const vocabList = weekVocabulary.length > 0
-      ? weekVocabulary.slice(0, 15).map(w => `${w.italian} - ${w.english}`).join(', ')
-      : 'vocabulary from this week';
+    if (!openai) {
+      initializeOpenAI();
+    }
+    
+    const vocabList = vocabulary.map(word => `${word.italian} (${word.english})`).join(', ');
+    
+    const systemPrompt = `You are an expert Italian language teacher. Generate a comprehensive weekly quiz for Week ${weekNumber} covering the theme "${theme}".
 
-    const prompt = `Create a quiz for Week ${weekNumber} of Italian language learning.
+Requirements:
+- Create 10 questions total
+- Include different question types: multiple choice, fill-in-the-blank, translation, and vocabulary matching
+- Use vocabulary related to the theme: ${vocabList}
+- Make questions appropriate for beginner to intermediate learners
+- Include clear explanations for answers
+- Focus on the week's theme and vocabulary
 
-Theme: "${theme}"
-Vocabulary covered: ${vocabList}
+Format your response as a JSON object with this structure:
+{
+  "title": "Quiz title",
+  "week": ${weekNumber},
+  "theme": "${theme}",
+  "instructions": "Clear instructions for taking the quiz",
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "question": "Question text in Italian",
+      "question_translation": "English translation of question",
+      "options": ["option1", "option2", "option3", "option4"],
+      "correct_answer": 0,
+      "explanation": "Explanation of why this answer is correct"
+    },
+    {
+      "type": "fill_in_blank",
+      "question": "Complete the sentence: Ciao, come ___?",
+      "question_translation": "Complete the sentence: Hello, how ___?",
+      "correct_answer": "stai",
+      "explanation": "The correct form is 'stai' (you are)"
+    },
+    {
+      "type": "translation",
+      "question": "Translate to Italian: Good morning",
+      "question_translation": "Translate to Italian: Good morning",
+      "correct_answer": "Buongiorno",
+      "explanation": "Buongiorno is the formal way to say good morning"
+    },
+    {
+      "type": "vocabulary_matching",
+      "question": "Match the Italian word with its English meaning",
+      "question_translation": "Match the Italian word with its English meaning",
+      "pairs": [
+        {"italian": "Ciao", "english": "Hello"},
+        {"italian": "Grazie", "english": "Thank you"}
+      ],
+      "explanation": "These are basic Italian greetings and expressions"
+    }
+  ],
+  "scoring": {
+    "total_points": 100,
+    "points_per_question": 10
+  }
+}`;
 
-Create a quiz with:
-1. 5 multiple choice questions (mix of vocabulary, grammar, and comprehension)
-2. Each question should have 4 options (A, B, C, D)
-3. Include the correct answer for each question
-4. Make questions progressively harder
-5. Mix question types: translation, fill-in-blank, grammar, usage
-
-Format:
-Question 1: [Question text]
-A) Option 1
-B) Option 2
-C) Option 3
-D) Option 4
-Correct Answer: [Letter]
-
-Make it challenging but fair for beginner-intermediate learners!`;
-
-    const completion = await client.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content: 'You are an Italian language teacher creating fair and educational quizzes to test learners\' knowledge.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Generate weekly quiz for Week ${weekNumber}, theme: ${theme}` }
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 3000,
     });
 
-    const content = completion.choices[0].message.content;
-
-    return {
-      weekNumber,
-      theme,
-      content,
-      totalQuestions: 5,
-      generatedAt: new Date().toISOString()
-    };
+    const response = completion.choices[0].message.content;
+    
+    // Parse JSON response
+    const quiz = JSON.parse(response);
+    
+    console.log(`✅ Generated weekly quiz for Week ${weekNumber}, theme: ${theme}`);
+    return quiz;
+    
   } catch (error) {
-    console.error('Error generating quiz:', error);
-    throw error;
+    console.error('Error generating weekly quiz:', error);
+    
+    // Fallback quiz
+    return getFallbackQuiz(weekNumber, theme);
   }
 }
 
 /**
- * Generate a quiz in structured JSON format for interactive quizzes
+ * Generate practice quiz (shorter version)
  * @param {number} weekNumber - Week number
- * @param {string} theme - Weekly theme
- * @param {Array} weekVocabulary - Vocabulary from the week
- * @returns {Promise<Array>} Array of question objects
+ * @param {string} theme - Week theme
+ * @param {Array} vocabulary - Array of vocabulary words
+ * @returns {Object} Practice quiz object
  */
-export async function generateStructuredQuiz(weekNumber, theme, weekVocabulary = []) {
-  const client = initializeOpenAI();
-  
-  if (!client) {
-    throw new Error('OpenAI API not configured');
-  }
-
+export async function generatePracticeQuiz(weekNumber, theme, vocabulary) {
   try {
-    const vocabList = weekVocabulary.length > 0
-      ? weekVocabulary.slice(0, 15).map(w => `${w.italian} - ${w.english}`).join(', ')
-      : 'basic Italian vocabulary';
+    if (!openai) {
+      initializeOpenAI();
+    }
+    
+    const vocabList = vocabulary.map(word => `${word.italian} (${word.english})`).join(', ');
+    
+    const systemPrompt = `You are an expert Italian language teacher. Generate a short practice quiz for Week ${weekNumber} covering the theme "${theme}".
 
-    const prompt = `Create a 5-question quiz for Italian learners.
+Requirements:
+- Create 5 questions total
+- Include different question types: multiple choice, fill-in-the-blank, and translation
+- Use vocabulary related to the theme: ${vocabList}
+- Make questions appropriate for beginner to intermediate learners
+- Keep it shorter than the weekly quiz
 
-Week ${weekNumber} - Theme: "${theme}"
-Vocabulary: ${vocabList}
-
-Return ONLY a valid JSON array with this exact structure:
-[
-  {
-    "question": "What does 'ciao' mean?",
-    "options": ["Hello/Goodbye", "Thank you", "Please", "Excuse me"],
-    "correctAnswer": 0,
-    "explanation": "Ciao is used for both hello and goodbye in informal contexts."
+Format your response as a JSON object with this structure:
+{
+  "title": "Practice Quiz",
+  "week": ${weekNumber},
+  "theme": "${theme}",
+  "instructions": "Quick practice quiz instructions",
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "question": "Question text in Italian",
+      "question_translation": "English translation of question",
+      "options": ["option1", "option2", "option3", "option4"],
+      "correct_answer": 0,
+      "explanation": "Brief explanation"
+    }
+  ],
+  "scoring": {
+    "total_points": 50,
+    "points_per_question": 10
   }
-]
+}`;
 
-Important:
-- correctAnswer is the index (0-3) of the correct option
-- Mix vocabulary, grammar, and usage questions
-- Make questions progressively harder
-- Return ONLY the JSON array, no additional text`;
-
-    const completion = await client.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content: 'You are a quiz generator. Return ONLY valid JSON arrays, no additional text.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Generate practice quiz for Week ${weekNumber}, theme: ${theme}` }
       ],
-      temperature: 0.6,
-      max_tokens: 2000,
+      temperature: 0.7,
+      max_tokens: 1500,
     });
 
-    const response = completion.choices[0].message.content.trim();
+    const response = completion.choices[0].message.content;
     
-    // Try to extract JSON if wrapped in markdown
-    let jsonText = response;
-    if (response.includes('```json')) {
-      jsonText = response.split('```json')[1].split('```')[0].trim();
-    } else if (response.includes('```')) {
-      jsonText = response.split('```')[1].split('```')[0].trim();
-    }
-
-    const questions = JSON.parse(jsonText);
-    return questions;
+    // Parse JSON response
+    const quiz = JSON.parse(response);
+    
+    console.log(`✅ Generated practice quiz for Week ${weekNumber}, theme: ${theme}`);
+    return quiz;
+    
   } catch (error) {
-    console.error('Error generating structured quiz:', error);
-    // Return fallback quiz
-    return generateFallbackQuiz(theme);
-  }
-}
-
-/**
- * Fallback quiz if API fails
- */
-function generateFallbackQuiz(theme) {
-  return [
-    {
-      question: "What does 'ciao' mean in English?",
-      options: ["Hello/Goodbye", "Thank you", "Please", "Good night"],
-      correctAnswer: 0,
-      explanation: "Ciao is used for both hello and goodbye in informal contexts."
-    },
-    {
-      question: "How do you say 'thank you' in Italian?",
-      options: ["Prego", "Grazie", "Scusa", "Ciao"],
-      correctAnswer: 1,
-      explanation: "Grazie means 'thank you' in Italian."
-    },
-    {
-      question: "What does 'buongiorno' mean?",
-      options: ["Good evening", "Good night", "Good morning", "Goodbye"],
-      correctAnswer: 2,
-      explanation: "Buongiorno means 'good morning' or 'good day'."
-    },
-    {
-      question: "How do you say 'please' in Italian?",
-      options: ["Grazie", "Prego", "Per favore", "Scusa"],
-      correctAnswer: 2,
-      explanation: "Per favore means 'please' in Italian."
-    },
-    {
-      question: "What does 'mi dispiace' mean?",
-      options: ["I'm happy", "I'm sorry", "I'm tired", "I'm hungry"],
-      correctAnswer: 1,
-      explanation: "Mi dispiace means 'I'm sorry' in Italian."
-    }
-  ];
-}
-
-/**
- * Evaluate user's quiz answers
- * @param {Array} questions - Quiz questions with correct answers
- * @param {Array} userAnswers - User's selected answers (indices)
- * @returns {Object} Results with score and feedback
- */
-export function evaluateQuiz(questions, userAnswers) {
-  let correctCount = 0;
-  const results = [];
-
-  questions.forEach((q, index) => {
-    const userAnswer = userAnswers[index];
-    const isCorrect = userAnswer === q.correctAnswer;
+    console.error('Error generating practice quiz:', error);
     
-    if (isCorrect) correctCount++;
-
-    results.push({
-      questionNumber: index + 1,
-      question: q.question,
-      userAnswer: q.options[userAnswer],
-      correctAnswer: q.options[q.correctAnswer],
-      isCorrect,
-      explanation: q.explanation
-    });
-  });
-
-  const score = correctCount;
-  const percentage = Math.round((correctCount / questions.length) * 100);
-  
-  let feedback = '';
-  if (percentage >= 80) {
-    feedback = '🌟 Eccellente! (Excellent!) You have mastered this week\'s material!';
-  } else if (percentage >= 60) {
-    feedback = '👍 Bene! (Good!) You\'re doing well, keep practicing!';
-  } else {
-    feedback = '💪 Keep studying! Review this week\'s vocabulary and try again.';
+    // Fallback practice quiz
+    return getFallbackPracticeQuiz(weekNumber, theme);
   }
+}
 
+/**
+ * Format quiz message for Telegram
+ * @param {Object} quiz - Quiz object
+ * @returns {string} Formatted message
+ */
+export function formatQuizMessage(quiz) {
+  let message = `📚 *${quiz.title}* 📚\n\n`;
+  message += `*Week ${quiz.week} - ${quiz.theme}*\n\n`;
+  message += `*Instructions:*\n`;
+  message += `${quiz.instructions}\n\n`;
+  
+  quiz.questions.forEach((q, index) => {
+    message += `*Question ${index + 1}:*\n`;
+    
+    if (q.type === 'multiple_choice') {
+      message += `${q.question}\n`;
+      message += `_${q.question_translation}_\n\n`;
+      q.options.forEach((option, optIndex) => {
+        message += `${optIndex + 1}. ${option}\n`;
+      });
+      message += `\n*Answer: ${q.options[q.correct_answer]}*\n`;
+      message += `_${q.explanation}_\n\n`;
+      
+    } else if (q.type === 'fill_in_blank') {
+      message += `${q.question}\n`;
+      message += `_${q.question_translation}_\n\n`;
+      message += `*Answer: ${q.correct_answer}*\n`;
+      message += `_${q.explanation}_\n\n`;
+      
+    } else if (q.type === 'translation') {
+      message += `${q.question}\n`;
+      message += `_${q.question_translation}_\n\n`;
+      message += `*Answer: ${q.correct_answer}*\n`;
+      message += `_${q.explanation}_\n\n`;
+      
+    } else if (q.type === 'vocabulary_matching') {
+      message += `${q.question}\n`;
+      message += `_${q.question_translation}_\n\n`;
+      q.pairs.forEach(pair => {
+        message += `• ${pair.italian} = ${pair.english}\n`;
+      });
+      message += `\n_${q.explanation}_\n\n`;
+    }
+  });
+  
+  message += `*Scoring:* ${quiz.scoring.total_points} points total (${quiz.scoring.points_per_question} per question)\n\n`;
+  message += `*Buona fortuna!* (Good luck!) 🍀✨\n`;
+  message += `\n_Tip: Review the vocabulary and try to understand the explanations!_ 📖`;
+  
+  return message;
+}
+
+/**
+ * Get fallback quiz when OpenAI fails
+ * @param {number} weekNumber - Week number
+ * @param {string} theme - Week theme
+ * @returns {Object} Fallback quiz object
+ */
+function getFallbackQuiz(weekNumber, theme) {
   return {
-    score,
-    totalQuestions: questions.length,
-    percentage,
-    feedback,
-    results
+    title: "Weekly Quiz",
+    week: weekNumber,
+    theme: theme,
+    instructions: "Answer the following questions about this week's theme. Take your time and think carefully!",
+    questions: [
+      {
+        type: "multiple_choice",
+        question: "Come si dice 'Hello' in italiano?",
+        question_translation: "Usually, 'Hello' in Italian is:",
+        options: ["Ciao", "Buongiorno", "Buonasera", "Tutte le precedenti"],
+        correct_answer: 3,
+        explanation: "All of these are correct ways to say hello in Italian, depending on the time and context."
+      },
+      {
+        type: "fill_in_blank",
+        question: "Ciao, come ___?",
+        question_translation: "Hello, how ___?",
+        correct_answer: "stai",
+        explanation: "The correct form is 'stai' (you are) when asking 'how are you?'"
+      },
+      {
+        type: "translation",
+        question: "Translate to Italian: Thank you",
+        question_translation: "Translate to Italian: Thank you",
+        correct_answer: "Grazie",
+        explanation: "Grazie is the standard way to say thank you in Italian."
+      }
+    ],
+    scoring: {
+      total_points: 30,
+      points_per_question: 10
+    }
   };
 }
 
 /**
- * Format quiz for Telegram message
- * @param {Object} quizData - Quiz data from generateWeeklyQuiz
- * @returns {string} Formatted message
+ * Get fallback practice quiz when OpenAI fails
+ * @param {number} weekNumber - Week number
+ * @param {string} theme - Week theme
+ * @returns {Object} Fallback practice quiz object
  */
-export function formatQuizMessage(quizData) {
-  return `📝 *Week ${quizData.weekNumber} Quiz - ${quizData.theme}*
-
-Time to test your knowledge! 🎯
-
-${quizData.content}
-
-_Answer each question and send me your answers (e.g., "1A 2B 3C 4D 5A")_ 
-
-Good luck! Buona fortuna! 🍀`;
-}
-
-/**
- * Format quiz results for Telegram
- * @param {Object} results - Results from evaluateQuiz
- * @returns {string} Formatted message
- */
-export function formatQuizResults(results) {
-  let message = `📊 *Quiz Results*\n\n`;
-  message += `Score: ${results.score}/${results.totalQuestions} (${results.percentage}%)\n`;
-  message += `${results.feedback}\n\n`;
-  message += `*Detailed Results:*\n`;
-
-  results.results.forEach((r, index) => {
-    const icon = r.isCorrect ? '✅' : '❌';
-    message += `\n${icon} *Question ${r.questionNumber}*\n`;
-    message += `Your answer: ${r.userAnswer}\n`;
-    if (!r.isCorrect) {
-      message += `Correct answer: ${r.correctAnswer}\n`;
+function getFallbackPracticeQuiz(weekNumber, theme) {
+  return {
+    title: "Practice Quiz",
+    week: weekNumber,
+    theme: theme,
+    instructions: "Quick practice quiz! Answer these questions about this week's theme.",
+    questions: [
+      {
+        type: "multiple_choice",
+        question: "Qual è la traduzione di 'Good morning'?",
+        question_translation: "What is the translation of 'Good morning'?",
+        options: ["Buongiorno", "Buonasera", "Buonanotte", "Ciao"],
+        correct_answer: 0,
+        explanation: "Buongiorno is used to say good morning in Italian."
+      },
+      {
+        type: "translation",
+        question: "Translate to Italian: Goodbye",
+        question_translation: "Translate to Italian: Goodbye",
+        correct_answer: "Arrivederci",
+        explanation: "Arrivederci is a formal way to say goodbye in Italian."
+      }
+    ],
+    scoring: {
+      total_points: 20,
+      points_per_question: 10
     }
-    message += `_${r.explanation}_\n`;
-  });
-
-  return message;
+  };
 }
-
-/**
- * Format interactive quiz question for Telegram
- * @param {Object} question - Single question object
- * @param {number} questionNumber - Question number
- * @param {number} totalQuestions - Total number of questions
- * @returns {string} Formatted message
- */
-export function formatInteractiveQuestion(question, questionNumber, totalQuestions) {
-  let message = `❓ *Question ${questionNumber}/${totalQuestions}*\n\n`;
-  message += `${question.question}\n\n`;
-  
-  question.options.forEach((option, index) => {
-    const letter = String.fromCharCode(65 + index); // A, B, C, D
-    message += `${letter}) ${option}\n`;
-  });
-
-  message += `\n_Reply with A, B, C, or D_`;
-  
-  return message;
-}
-
-export default {
-  initializeOpenAI,
-  generateWeeklyQuiz,
-  generateStructuredQuiz,
-  evaluateQuiz,
-  formatQuizMessage,
-  formatQuizResults,
-  formatInteractiveQuestion
-};
-
