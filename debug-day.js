@@ -58,3 +58,4 @@ console.log(`   Result: Week ${prog3.weekNumber}, Day ${prog3.dayNumber} ${prog3
 
 process.exit(0);
 
+

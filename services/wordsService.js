@@ -27,7 +27,7 @@ export function initializeOpenAI() {
  * @param {number} count - Number of words to generate (default: 5)
  * @returns {Promise<Object>} Generated words with translations and examples
  */
-export async function generateDailyWords(theme, task, focus, count = 5) {
+export async function generateDailyWords(theme, task, focus, count = 8) {
   const client = initializeOpenAI();
   
   if (!client) {
@@ -35,34 +35,40 @@ export async function generateDailyWords(theme, task, focus, count = 5) {
   }
 
   try {
-    const prompt = `You are an expert Italian language teacher. Generate ${count} Italian words/phrases for learners.
-
-Theme: "${theme}"
+    const prompt = `You are an imaginative Italian language teacher who combines learning with storytelling.
+Generate ${count} Italian words or phrases related to this theme: "${theme}".
 Task: "${task}"
 Focus: "${focus}"
 
-For each word/phrase, provide:
-1. Italian word/phrase
-2. English translation
-3. Example sentence in Italian with English translation
-4. Pronunciation tip (optional)
+Include:
+1. A short fun or inspiring *scene* (5–8 sentences) from Italian life, a famous person, or pop culture, where these words naturally appear.
+2. For each word:
+   - Italian word/phrase
+   - English translation
+   - Example sentence (Italian + English)
+   - Short cultural or pronunciation tip (optional)
 
-Format your response as a structured list that's easy to read and learn from. Make it engaging and educational. Include only the most useful and practical words for this theme.`;
+The goal: make it feel like the student is learning through a vivid, funny, or emotional story — not just a list.
+
+Format:
+- 🎬 Short Story (2–3 paragraphs)
+- 📚 Vocabulary List (numbered 1 to ${count})
+- 💡 Closing tip (motivation or cultural insight).`;
 
     const completion = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: 'You are an enthusiastic Italian language teacher who makes learning fun and practical. Always provide clear examples and helpful tips.'
+          content: 'You are a passionate Italian teacher who loves storytelling and culture. You always make language feel alive and emotional.'
         },
         {
           role: 'user',
           content: prompt
         }
       ],
-      temperature: 0.7,
-      max_tokens: 1500,
+      temperature: 0.9,
+      max_tokens: 1600,
     });
 
     const response = completion.choices[0].message.content;
@@ -79,7 +85,6 @@ Format your response as a structured list that's easy to read and learn from. Ma
     throw error;
   }
 }
-
 /**
  * Generate vocabulary specifically for vocabulary-focused days
  * Returns structured format suitable for database storage
@@ -228,4 +233,5 @@ export default {
   formatWordsMessage,
   formatStructuredWords
 };
+
 
