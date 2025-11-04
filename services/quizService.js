@@ -15,8 +15,15 @@ export function initializeOpenAI() {
     throw new Error('OPENAI_API_KEY environment variable is required');
   }
   
+  // Trim whitespace and newlines from API key (common issue when copying from files)
+  const apiKey = process.env.OPENAI_API_KEY.trim().replace(/\r?\n|\r/g, '');
+  
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY is empty after trimming');
+  }
+  
   openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+    apiKey: apiKey
   });
   
   console.log('✅ OpenAI initialized for quiz service');
