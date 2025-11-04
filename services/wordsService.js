@@ -24,68 +24,58 @@ export function initializeOpenAI() {
 }
 
 /**
- * Generate daily words based on theme and task
+ * Generate daily words based on theme and task (Improved: 8-10 words, story-based)
  * @param {string} theme - Week theme
  * @param {string} task - Daily task description
  * @param {string} focus - Daily focus (vocabulary, grammar, etc.)
- * @returns {Array} Array of word objects
+ * @param {number} wordCount - Number of words to generate (default 10)
+ * @returns {Object} Object with words and story context
  */
-export async function generateDailyWords(theme, task, focus) {
+export async function generateDailyWords(theme, task, focus, wordCount = 10) {
   try {
     if (!openai) {
       initializeOpenAI();
     }
     
-    const systemPrompt = `You are an expert Italian language teacher. Generate exactly 20 Italian words related to the theme "${theme}" for a daily vocabulary lesson.
+    const systemPrompt = `Italian teacher. Generate ${wordCount} words for "${theme}" in a dialogue/story.
 
-CRITICAL REQUIREMENTS:
-- Generate EXACTLY 20 words - no more, no less
-- Include common, useful words that beginners can learn
-- Each word should have: Italian word, English translation, phonetic pronunciation, and a simple example sentence
-- Focus on practical vocabulary that relates to the theme
-- Make sure words are appropriate for beginners to intermediate learners
-- Do not include any explanations or additional text, only the JSON array
+Rules:
+- Exactly ${wordCount} words, connected in 2-3 sentence dialogue
+- Each word: Italian, English, pronunciation, example from story
+- Beginner-intermediate level
 
-Format your response as a JSON array with this structure:
-[
-  {
-    "italian": "word in Italian",
-    "english": "English translation",
-    "pronunciation": "phonetic pronunciation",
-    "example": "example sentence in Italian",
-    "translation": "English translation of example"
-  }
-]`;
+JSON format:
+{"context":"dialogue (Italian)","contextTranslation":"English","words":[{"italian":"...","english":"...","pronunciation":"...","example":"...","translation":"..."}]}`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Generate exactly 20 vocabulary words for theme: ${theme}, task: ${task}, focus: ${focus}` }
+        { role: 'user', content: `Theme: ${theme}` }
       ],
-      temperature: 0.7,
-      max_tokens: 3000,
+      temperature: 0.8,
+      max_tokens: 1500,
     });
 
     const response = completion.choices[0].message.content;
     
     // Parse JSON response
-    const words = JSON.parse(response);
+    const result = JSON.parse(response);
     
-    // Validate that we got exactly 20 words
-    if (words.length !== 20) {
-      console.log(`⚠️ OpenAI returned ${words.length} words instead of 20. Using fallback vocabulary.`);
-      return getFallbackVocabulary(theme);
+    // Validate word count
+    if (!result.words || result.words.length !== wordCount) {
+      console.log(`⚠️ OpenAI returned ${result.words?.length || 0} words instead of ${wordCount}. Using fallback vocabulary.`);
+      return getFallbackVocabularyWithContext(theme, wordCount);
     }
     
-    console.log(`✅ Generated ${words.length} words for theme: ${theme}`);
-    return words;
+    console.log(`✅ Generated ${result.words.length} words in story context for theme: ${theme}`);
+    return result;
     
   } catch (error) {
     console.error('Error generating daily words:', error);
     
     // Fallback vocabulary if OpenAI fails
-    return getFallbackVocabulary(theme);
+    return getFallbackVocabularyWithContext(theme, wordCount);
   }
 }
 
@@ -101,40 +91,19 @@ export async function generateStructuredVocabulary(theme, task) {
       initializeOpenAI();
     }
     
-    const systemPrompt = `You are an expert Italian language teacher. Generate a comprehensive vocabulary list for the theme "${theme}".
+    const systemPrompt = `Italian teacher. Generate 20+ words for "${theme}" organized by category.
 
-Requirements:
-- Generate at least 20 words organized by categories
-- Include: nouns, verbs, adjectives, and useful phrases
-- Each word should have: Italian word, English translation, phonetic pronunciation, and example sentence
-- Organize words logically by category
-- Include common expressions and phrases related to the theme
-- Make sure total words across all categories equals at least 20
-
-Format your response as a JSON array with this structure:
-[
-  {
-    "category": "category name (e.g., 'Nouns', 'Verbs', 'Adjectives', 'Phrases')",
-    "words": [
-      {
-        "italian": "word in Italian",
-        "english": "English translation",
-        "pronunciation": "phonetic pronunciation",
-        "example": "example sentence in Italian",
-        "translation": "English translation of example"
-      }
-    ]
-  }
-]`;
+Include: nouns, verbs, adjectives, phrases. Each word: Italian, English, pronunciation, example.
+JSON: [{"category":"...","words":[{"italian":"...","english":"...","pronunciation":"...","example":"...","translation":"..."}]}]`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Generate structured vocabulary for theme: ${theme}, task: ${task}` }
+        { role: 'user', content: `Theme: ${theme}` }
       ],
       temperature: 0.7,
-      max_tokens: 2500,
+      max_tokens: 2000,
     });
 
     const response = completion.choices[0].message.content;
@@ -154,13 +123,39 @@ Format your response as a JSON array with this structure:
 }
 
 /**
- * Format words message for Telegram
- * @param {Array} words - Array of word objects
+ * Format words message for Telegram (Updated for story-based learning)
+ * @param {Object|Array} vocabData - Object with context and words array, or just words array
  * @returns {string} Formatted message
  */
-export function formatWordsMessage(words) {
-  let message = `📚 *Daily Vocabulary* 📚\n\n`;
+export function formatWordsMessage(vocabData) {
+  // Handle both new format (object with context) and old format (array)
+  let words = [];
+  let context = '';
+  let contextTranslation = '';
   
+  if (Array.isArray(vocabData)) {
+    // Old format - just words array
+    words = vocabData;
+  } else if (vocabData.words) {
+    // New format - object with context
+    words = vocabData.words;
+    context = vocabData.context || '';
+    contextTranslation = vocabData.contextTranslation || '';
+  } else {
+    words = [];
+  }
+  
+  let message = `📚 *Daily Vocabulary* (${words.length} words) 📚\n\n`;
+  
+  // Show story context if available
+  if (context) {
+    message += `📖 *Story Context:*\n`;
+    message += `${context}\n`;
+    message += `_${contextTranslation}_\n\n`;
+    message += `─\n\n`;
+  }
+  
+  // List words
   words.forEach((word, index) => {
     message += `*${index + 1}. ${word.italian}* - ${word.english}\n`;
     message += `🔊 ${word.pronunciation}\n`;
@@ -169,9 +164,21 @@ export function formatWordsMessage(words) {
   });
   
   message += `\n*Buono studio!* (Happy studying!) 📖✨\n`;
-  message += `\n_Tip: Practice pronouncing each word out loud!_ 🗣️`;
+  message += `\n💡 *Tip:* These words work together in context. Practice using them in sentences!`;
   
   return message;
+}
+
+/**
+ * Get just the words array from vocabData (for backward compatibility)
+ * @param {Object|Array} vocabData - Vocabulary data
+ * @returns {Array} Words array
+ */
+export function extractWords(vocabData) {
+  if (Array.isArray(vocabData)) {
+    return vocabData;
+  }
+  return vocabData.words || [];
 }
 
 /**
@@ -203,7 +210,39 @@ export function formatStructuredWords(structuredVocab, theme) {
 }
 
 /**
- * Get fallback vocabulary when OpenAI fails
+ * Get fallback vocabulary with context when OpenAI fails
+ * @param {string} theme - Week theme
+ * @param {number} wordCount - Number of words needed
+ * @returns {Object} Object with context and words
+ */
+function getFallbackVocabularyWithContext(theme, wordCount = 10) {
+  const words = getFallbackVocabulary(theme);
+  const selectedWords = words.slice(0, wordCount);
+  
+  // Create a simple context dialogue using the words
+  let context = '';
+  let contextTranslation = '';
+  
+  if (theme === 'Greetings and Basic Phrases') {
+    context = 'Ciao! Buongiorno. Come stai? Sto bene, grazie. Piacere di conoscerti!';
+    contextTranslation = 'Hello! Good morning. How are you? I\'m well, thank you. Nice to meet you!';
+  } else if (theme === 'Numbers and Dates') {
+    context = 'Oggi è lunedì. Sono le otto. Ho venti anni.';
+    contextTranslation = 'Today is Monday. It\'s eight o\'clock. I\'m twenty years old.';
+  } else {
+    context = selectedWords.map(w => w.italian).join('. ') + '.';
+    contextTranslation = selectedWords.map(w => w.english).join('. ') + '.';
+  }
+  
+  return {
+    context,
+    contextTranslation,
+    words: selectedWords
+  };
+}
+
+/**
+ * Get fallback vocabulary when OpenAI fails (legacy function)
  * @param {string} theme - Week theme
  * @returns {Array} Array of fallback words
  */

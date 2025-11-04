@@ -38,40 +38,20 @@ export async function generateTaskBasedStory(theme, task, vocabulary) {
     
     const vocabList = vocabulary.map(word => `${word.italian} (${word.english})`).join(', ');
     
-    const systemPrompt = `You are an expert Italian language teacher. Generate a short Italian story for reading comprehension practice.
+    const systemPrompt = `Italian teacher. Generate 150-200 word story for "${theme}".
 
-Requirements:
-- Write a story of 150-200 words in Italian
-- Use vocabulary related to the theme "${theme}"
-- Include some of these words in the story: ${vocabList}
-- Make the story appropriate for beginner to intermediate learners
-- Include interesting content that will engage students
-- End with 3 comprehension questions in Italian
+Use vocab: ${vocabList.substring(0, 200)}. Beginner-intermediate level. Add 3 comprehension questions.
 
-Format your response as a JSON object with this structure:
-{
-  "title": "Story title in Italian",
-  "story": "The story text in Italian",
-  "translation": "English translation of the story",
-  "vocabulary_used": ["list of vocabulary words used"],
-  "questions": [
-    {
-      "question": "Question in Italian",
-      "translation": "Question in English",
-      "answer": "Correct answer in Italian",
-      "answer_translation": "Correct answer in English"
-    }
-  ]
-}`;
+JSON: {"title":"...","story":"...","translation":"...","vocabulary_used":[...],"questions":[{"question":"...","translation":"...","answer":"...","answer_translation":"..."}]}`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Generate a story for theme: ${theme}, task: ${task}` }
+        { role: 'user', content: `Theme: ${theme}` }
       ],
       temperature: 0.8,
-      max_tokens: 2000,
+      max_tokens: 1800,
     });
 
     const response = completion.choices[0].message.content;
@@ -104,35 +84,20 @@ export async function generatePracticePrompt(theme, vocabulary) {
     
     const vocabList = vocabulary.map(word => `${word.italian} (${word.english})`).join(', ');
     
-    const systemPrompt = `You are an expert Italian language teacher. Generate a writing practice prompt for students.
+    const systemPrompt = `Italian teacher. Generate writing exercise for "${theme}".
 
-Requirements:
-- Create a writing exercise related to the theme "${theme}"
-- Use some of these vocabulary words: ${vocabList}
-- Make it appropriate for beginner to intermediate learners
-- Provide clear instructions and examples
-- Include a sample response in Italian
+Use vocab: ${vocabList.substring(0, 150)}. Beginner-intermediate level.
 
-Format your response as a JSON object with this structure:
-{
-  "title": "Exercise title",
-  "instructions": "Clear instructions for the writing exercise",
-  "prompt": "The main writing prompt in Italian",
-  "prompt_translation": "English translation of the prompt",
-  "vocabulary_to_use": ["list of vocabulary words to include"],
-  "example_response": "Example response in Italian",
-  "example_translation": "English translation of example",
-  "tips": ["helpful tips for completing the exercise"]
-}`;
+JSON: {"title":"...","instructions":"...","prompt":"...","prompt_translation":"...","vocabulary_to_use":[...],"example_response":"...","example_translation":"...","tips":[...]}`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Generate practice prompt for theme: ${theme}` }
+        { role: 'user', content: `Theme: ${theme}` }
       ],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 1200,
     });
 
     const response = completion.choices[0].message.content;
@@ -166,26 +131,16 @@ export async function checkUserSentences(userSentences, theme, vocabulary) {
     
     const vocabList = vocabulary.map(word => `${word.italian} (${word.english})`).join(', ');
     
-    const systemPrompt = `You are an expert Italian language teacher providing feedback on student writing.
-
-Requirements:
-- Review the student's Italian sentences
-- Check for grammar, vocabulary usage, and overall coherence
-- Provide constructive feedback
-- Suggest improvements
-- Be encouraging and supportive
-- Focus on the theme "${theme}" and vocabulary: ${vocabList}
-
-Provide feedback in a friendly, educational tone.`;
+    const systemPrompt = `Italian teacher. Review student sentences. Check grammar, vocabulary, coherence. Provide constructive feedback. Theme: "${theme}". Vocab: ${vocabList.substring(0, 150)}. Be encouraging.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Please review these Italian sentences from a student learning about "${theme}":\n\n${userSentences}` }
+        { role: 'user', content: `Review: ${userSentences.substring(0, 500)}` }
       ],
       temperature: 0.7,
-      max_tokens: 1000,
+      max_tokens: 800,
     });
 
     const feedback = completion.choices[0].message.content;

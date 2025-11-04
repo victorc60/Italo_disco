@@ -6,15 +6,57 @@ import path from 'path';
  * Generates 1-7 day plans with different learning activities
  */
 
-// Daily learning activities for each day of the week
+// Improved daily learning activities - Integrated approach (vocab + grammar together)
 const DAILY_ACTIVITIES = {
-  1: { focus: 'vocabulary', task: 'Learn 20 new words and their meanings' },
-  2: { focus: 'grammar', task: 'Study grammar rules and sentence structure' },
-  3: { focus: 'reading', task: 'Read a short story or article' },
-  4: { focus: 'listening', task: 'Listen to Italian audio and practice comprehension' },
-  5: { focus: 'speaking', task: 'Practice pronunciation and speaking exercises' },
-  6: { focus: 'writing', task: 'Write sentences and short paragraphs' },
-  7: { focus: 'review', task: 'Review and practice everything learned this week' }
+  1: { 
+    focus: 'introduction', 
+    task: 'Learn 8-10 new words + basic grammar in context',
+    morning: 'vocabulary_grammar',
+    afternoon: 'practice',
+    evening: 'application'
+  },
+  2: { 
+    focus: 'integration', 
+    task: 'Review yesterday + 8-10 new words + grammar expansion',
+    morning: 'review_learn',
+    afternoon: 'integration',
+    evening: 'production'
+  },
+  3: { 
+    focus: 'expansion', 
+    task: 'Review previous days + expand vocabulary and grammar',
+    morning: 'review_learn',
+    afternoon: 'reading',
+    evening: 'writing'
+  },
+  4: { 
+    focus: 'practice', 
+    task: 'Review all previous content + listening practice',
+    morning: 'review',
+    afternoon: 'listening',
+    evening: 'speaking'
+  },
+  5: { 
+    focus: 'application', 
+    task: 'Apply all learned content in conversations',
+    morning: 'review',
+    afternoon: 'conversation',
+    evening: 'assessment'
+  },
+  6: { 
+    focus: 'mastery', 
+    task: 'Master difficult items + free practice',
+    morning: 'difficult_review',
+    afternoon: 'free_practice',
+    evening: 'journal'
+  },
+  7: { 
+    focus: 'consolidation', 
+    task: 'Comprehensive review and assessment',
+    morning: 'quiz',
+    afternoon: 'error_review',
+    evening: 'preview'
+  }
 };
 
 /**
@@ -53,16 +95,22 @@ export async function generateDailyPlan(weekNumber, dayNumber) {
       throw new Error(`Day ${dayNumber} not found in daily activities`);
     }
     
-    // Generate the complete daily plan
+    // Generate the complete daily plan with improved structure
     const dailyPlan = {
       weekNumber,
       dayNumber,
       theme: weekData.theme,
       focus: dailyActivity.focus,
       task: dailyActivity.task,
-      description: generateTaskDescription(weekData.theme, dailyActivity),
-      exercises: generateExercises(weekData.theme, dailyActivity.focus),
-      estimatedTime: getEstimatedTime(dailyActivity.focus)
+      morning: dailyActivity.morning,
+      afternoon: dailyActivity.afternoon,
+      evening: dailyActivity.evening,
+      description: generateTaskDescription(weekData.theme, dailyActivity, weekNumber),
+      exercises: generateExercises(weekData.theme, dailyActivity.focus, dayNumber),
+      estimatedTime: getEstimatedTime(dailyActivity.focus),
+      vocabularyCount: getVocabularyCount(dayNumber), // 8-10 words instead of 20
+      includesReview: dayNumber > 1, // Days 2-7 include review
+      storyBased: true // All learning is story/context-based
     };
     
     return dailyPlan;
@@ -140,62 +188,127 @@ export async function getWeekOverview(weekNumber) {
  * @param {Object} activity - Daily activity object
  * @returns {string} Detailed task description
  */
-function generateTaskDescription(theme, activity) {
+function generateTaskDescription(theme, activity, weekNumber) {
   const descriptions = {
-    vocabulary: `Learn 20 new Italian words related to "${theme}". Focus on pronunciation, meaning, and usage in sentences.`,
-    grammar: `Study Italian grammar rules related to "${theme}". Practice sentence structure and verb conjugations.`,
-    reading: `Read a short Italian text about "${theme}". Focus on comprehension and new vocabulary.`,
-    listening: `Listen to Italian audio content about "${theme}". Practice understanding spoken Italian.`,
-    speaking: `Practice speaking Italian about "${theme}". Focus on pronunciation and fluency.`,
-    writing: `Write Italian sentences and short paragraphs about "${theme}". Practice grammar and vocabulary.`,
-    review: `Review all vocabulary and grammar from this week's theme: "${theme}". Practice with exercises and quizzes.`
+    introduction: `Day 1: Introduction to "${theme}"
+🌅 Morning: Learn 8-10 essential words + basic grammar in a dialogue/story context
+🌆 Afternoon: Practice using new words and grammar in simple sentences
+🌙 Evening: Apply what you learned in your own sentences
+
+Everything is connected and used together, not separately!`,
+    
+    integration: `Day 2: Integration and Expansion
+🌅 Morning: Review yesterday's words + learn 8-10 new words + expand grammar
+🌆 Afternoon: Integrate all words and grammar in meaningful sentences
+🌙 Evening: Produce original sentences using everything learned
+
+Building on what you know, not starting over!`,
+    
+    expansion: `Day 3: Expanding Your Knowledge
+🌅 Morning: Review previous days + add 8-10 new words + new grammar patterns
+🌆 Afternoon: Read dialogue/story using all learned vocabulary and grammar
+🌙 Evening: Write using the new patterns and vocabulary
+
+Seeing everything work together in context!`,
+    
+    practice: `Day 4: Practice Makes Perfect
+🌅 Morning: Review all vocabulary from this week (spaced repetition)
+🌆 Afternoon: Listen to Italian audio and practice comprehension
+🌙 Evening: Practice pronunciation and speaking exercises
+
+Hearing and saying what you've learned!`,
+    
+    application: `Day 5: Real Application
+🌅 Morning: Review difficult items from the week
+🌆 Afternoon: Have conversations using this week's content
+🌙 Evening: Self-assessment quiz on this week's progress
+
+Using Italian in real situations!`,
+    
+    mastery: `Day 6: Mastery and Freedom
+🌅 Morning: Focus on difficult items that need extra practice
+🌆 Afternoon: Free practice - use Italian however you want
+🌙 Evening: Write a journal entry using this week's vocabulary
+
+You're becoming fluent!`,
+    
+    consolidation: `Day 7: Week Consolidation
+🌅 Morning: Comprehensive quiz on all week's content
+🌆 Afternoon: Review mistakes and practice weak areas
+🌙 Evening: Celebrate progress + preview next week's theme
+
+You've completed another week! Bravissimo!`
   };
   
   return descriptions[activity.focus] || activity.task;
 }
 
 /**
- * Generate exercises for the daily activity
+ * Get vocabulary count based on day (8-10 words, not 20)
+ * @param {number} dayNumber - Day number
+ * @returns {number} Number of words to learn
+ */
+function getVocabularyCount(dayNumber) {
+  if (dayNumber === 1) {
+    return 10; // First day: 10 words
+  } else if (dayNumber >= 2 && dayNumber <= 5) {
+    return 8; // Days 2-5: 8 words (plus review)
+  } else {
+    return 0; // Days 6-7: Review only, no new words
+  }
+}
+
+/**
+ * Generate exercises for the daily activity (improved with active recall)
  * @param {string} theme - Week theme
  * @param {string} focus - Daily focus
+ * @param {number} dayNumber - Day number for progressive difficulty
  * @returns {Array} Array of exercise objects
  */
-function generateExercises(theme, focus) {
+function generateExercises(theme, focus, dayNumber) {
   const exerciseTemplates = {
-    vocabulary: [
-      { type: 'flashcards', description: 'Practice with vocabulary flashcards' },
-      { type: 'matching', description: 'Match Italian words with English translations' },
-      { type: 'fill-in', description: 'Fill in the blanks with correct vocabulary' }
+    introduction: [
+      { type: 'story_vocabulary', description: 'Learn 8-10 words in a dialogue/story context about ' + theme },
+      { type: 'grammar_in_context', description: 'Learn grammar rule that uses these words immediately' },
+      { type: 'active_recall', description: 'Recall words without looking (active, not passive)' },
+      { type: 'simple_sentences', description: 'Create 3-5 simple sentences using new words + grammar' }
     ],
-    grammar: [
-      { type: 'conjugation', description: 'Practice verb conjugations' },
-      { type: 'sentence-building', description: 'Build sentences with correct grammar' },
-      { type: 'correction', description: 'Correct grammar mistakes in sentences' }
+    integration: [
+      { type: 'review_quiz', description: 'Quick review quiz on yesterday\'s words (spaced repetition)' },
+      { type: 'new_words', description: 'Learn 8 new words that connect to yesterday\'s topic' },
+      { type: 'grammar_expansion', description: 'Expand grammar knowledge with new patterns' },
+      { type: 'integrated_practice', description: 'Use all words and grammar together in sentences' }
     ],
-    reading: [
-      { type: 'comprehension', description: 'Answer questions about the text' },
-      { type: 'translation', description: 'Translate key phrases to English' },
-      { type: 'summary', description: 'Summarize the main points in Italian' }
+    expansion: [
+      { type: 'review', description: 'Review words from Days 1-2 (active recall)' },
+      { type: 'new_content', description: 'Add 8 more words + new grammar patterns' },
+      { type: 'reading_comprehension', description: 'Read dialogue using ALL learned vocabulary' },
+      { type: 'writing_practice', description: 'Write sentences using new patterns' }
     ],
-    listening: [
-      { type: 'comprehension', description: 'Answer questions about the audio' },
-      { type: 'dictation', description: 'Write down what you hear' },
-      { type: 'shadowing', description: 'Repeat after the speaker' }
+    practice: [
+      { type: 'spaced_review', description: 'Review all week\'s vocabulary (spaced repetition)' },
+      { type: 'listening', description: 'Listen to audio dialogue using this week\'s vocabulary' },
+      { type: 'pronunciation', description: 'Practice pronouncing all learned words' },
+      { type: 'speaking', description: 'Record yourself speaking using this week\'s content' }
     ],
-    speaking: [
-      { type: 'pronunciation', description: 'Practice pronunciation of new words' },
-      { type: 'conversation', description: 'Practice conversational phrases' },
-      { type: 'presentation', description: 'Describe the theme topic in Italian' }
+    application: [
+      { type: 'difficult_review', description: 'Focus on words/grammar you find difficult' },
+      { type: 'conversation', description: 'Have a conversation about ' + theme + ' using learned content' },
+      { type: 'scenarios', description: 'Practice real-world scenarios (ordering, asking directions, etc.)' },
+      { type: 'self_quiz', description: 'Test yourself on this week\'s progress' }
     ],
-    writing: [
-      { type: 'sentences', description: 'Write 5 sentences using new vocabulary' },
-      { type: 'paragraph', description: 'Write a short paragraph about the theme' },
-      { type: 'dialogue', description: 'Write a short dialogue between two people' }
+    mastery: [
+      { type: 'weak_areas', description: 'Practice items you struggled with' },
+      { type: 'free_practice', description: 'Use Italian freely - no restrictions!' },
+      { type: 'creative_writing', description: 'Write creatively using all learned vocabulary' },
+      { type: 'journal', description: 'Write a journal entry about ' + theme }
     ],
-    review: [
-      { type: 'quiz', description: 'Take a comprehensive quiz' },
-      { type: 'recap', description: 'Review all vocabulary from the week' },
-      { type: 'practice', description: 'Practice with mixed exercises' }
+    consolidation: [
+      { type: 'comprehensive_quiz', description: 'Quiz on all week\'s content' },
+      { type: 'error_analysis', description: 'Review mistakes and understand why' },
+      { type: 'weak_practice', description: 'Extra practice on weak areas' },
+      { type: 'celebration', description: 'Celebrate your progress this week!' },
+      { type: 'preview', description: 'Preview next week\'s exciting theme' }
     ]
   };
   
@@ -203,22 +316,22 @@ function generateExercises(theme, focus) {
 }
 
 /**
- * Get estimated time for different activities
+ * Get estimated time for different activities (improved structure)
  * @param {string} focus - Activity focus
  * @returns {string} Estimated time
  */
 function getEstimatedTime(focus) {
   const timeEstimates = {
-    vocabulary: '15-20 minutes',
-    grammar: '20-25 minutes',
-    reading: '15-20 minutes',
-    listening: '10-15 minutes',
-    speaking: '15-20 minutes',
-    writing: '20-25 minutes',
-    review: '25-30 minutes'
+    introduction: '25-30 minutes total (10 min morning, 10 min afternoon, 10 min evening)',
+    integration: '25-30 minutes total (review + new content + practice)',
+    expansion: '25-30 minutes total (review + expansion + application)',
+    practice: '25-30 minutes total (review + listening + speaking)',
+    application: '25-30 minutes total (review + conversation + assessment)',
+    mastery: '20-25 minutes total (practice + free expression)',
+    consolidation: '30-35 minutes total (quiz + review + preview)'
   };
   
-  return timeEstimates[focus] || '15-20 minutes';
+  return timeEstimates[focus] || '25-30 minutes';
 }
 
 /**

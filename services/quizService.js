@@ -38,70 +38,20 @@ export async function generateWeeklyQuiz(weekNumber, theme, vocabulary) {
     
     const vocabList = vocabulary.map(word => `${word.italian} (${word.english})`).join(', ');
     
-    const systemPrompt = `You are an expert Italian language teacher. Generate a comprehensive weekly quiz for Week ${weekNumber} covering the theme "${theme}".
+    const systemPrompt = `Italian teacher. Generate 10-question quiz for Week ${weekNumber}, theme "${theme}".
 
-Requirements:
-- Create 10 questions total
-- Include different question types: multiple choice, fill-in-the-blank, translation, and vocabulary matching
-- Use vocabulary related to the theme: ${vocabList}
-- Make questions appropriate for beginner to intermediate learners
-- Include clear explanations for answers
-- Focus on the week's theme and vocabulary
+Types: multiple_choice, fill_in_blank, translation, vocabulary_matching. Use vocab: ${vocabList.substring(0, 200)}. Beginner-intermediate level. Include explanations.
 
-Format your response as a JSON object with this structure:
-{
-  "title": "Quiz title",
-  "week": ${weekNumber},
-  "theme": "${theme}",
-  "instructions": "Clear instructions for taking the quiz",
-  "questions": [
-    {
-      "type": "multiple_choice",
-      "question": "Question text in Italian",
-      "question_translation": "English translation of question",
-      "options": ["option1", "option2", "option3", "option4"],
-      "correct_answer": 0,
-      "explanation": "Explanation of why this answer is correct"
-    },
-    {
-      "type": "fill_in_blank",
-      "question": "Complete the sentence: Ciao, come ___?",
-      "question_translation": "Complete the sentence: Hello, how ___?",
-      "correct_answer": "stai",
-      "explanation": "The correct form is 'stai' (you are)"
-    },
-    {
-      "type": "translation",
-      "question": "Translate to Italian: Good morning",
-      "question_translation": "Translate to Italian: Good morning",
-      "correct_answer": "Buongiorno",
-      "explanation": "Buongiorno is the formal way to say good morning"
-    },
-    {
-      "type": "vocabulary_matching",
-      "question": "Match the Italian word with its English meaning",
-      "question_translation": "Match the Italian word with its English meaning",
-      "pairs": [
-        {"italian": "Ciao", "english": "Hello"},
-        {"italian": "Grazie", "english": "Thank you"}
-      ],
-      "explanation": "These are basic Italian greetings and expressions"
-    }
-  ],
-  "scoring": {
-    "total_points": 100,
-    "points_per_question": 10
-  }
-}`;
+JSON: {"title":"...","week":${weekNumber},"theme":"${theme}","instructions":"...","questions":[{"type":"multiple_choice","question":"...","question_translation":"...","options":[...],"correct_answer":0,"explanation":"..."},{"type":"fill_in_blank","question":"...","question_translation":"...","correct_answer":"...","explanation":"..."},{"type":"translation","question":"...","question_translation":"...","correct_answer":"...","explanation":"..."},{"type":"vocabulary_matching","question":"...","pairs":[{"italian":"...","english":"..."}],"explanation":"..."}]}`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Generate weekly quiz for Week ${weekNumber}, theme: ${theme}` }
+        { role: 'user', content: `Week ${weekNumber}: ${theme}` }
       ],
       temperature: 0.7,
-      max_tokens: 3000,
+      max_tokens: 2500,
     });
 
     const response = completion.choices[0].message.content;
@@ -135,45 +85,20 @@ export async function generatePracticeQuiz(weekNumber, theme, vocabulary) {
     
     const vocabList = vocabulary.map(word => `${word.italian} (${word.english})`).join(', ');
     
-    const systemPrompt = `You are an expert Italian language teacher. Generate a short practice quiz for Week ${weekNumber} covering the theme "${theme}".
+    const systemPrompt = `Italian teacher. Generate 5-question practice quiz for Week ${weekNumber}, theme "${theme}".
 
-Requirements:
-- Create 5 questions total
-- Include different question types: multiple choice, fill-in-the-blank, and translation
-- Use vocabulary related to the theme: ${vocabList}
-- Make questions appropriate for beginner to intermediate learners
-- Keep it shorter than the weekly quiz
+Types: multiple_choice, fill_in_blank, translation. Use vocab: ${vocabList.substring(0, 150)}. Beginner-intermediate level.
 
-Format your response as a JSON object with this structure:
-{
-  "title": "Practice Quiz",
-  "week": ${weekNumber},
-  "theme": "${theme}",
-  "instructions": "Quick practice quiz instructions",
-  "questions": [
-    {
-      "type": "multiple_choice",
-      "question": "Question text in Italian",
-      "question_translation": "English translation of question",
-      "options": ["option1", "option2", "option3", "option4"],
-      "correct_answer": 0,
-      "explanation": "Brief explanation"
-    }
-  ],
-  "scoring": {
-    "total_points": 50,
-    "points_per_question": 10
-  }
-}`;
+JSON: {"title":"Practice Quiz","week":${weekNumber},"theme":"${theme}","instructions":"...","questions":[{"type":"multiple_choice","question":"...","question_translation":"...","options":[...],"correct_answer":0,"explanation":"..."}]}`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Generate practice quiz for Week ${weekNumber}, theme: ${theme}` }
+        { role: 'user', content: `Week ${weekNumber}: ${theme}` }
       ],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 1200,
     });
 
     const response = completion.choices[0].message.content;
